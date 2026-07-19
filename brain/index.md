@@ -5,7 +5,8 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 
 ## Strategies
 
-*(none yet)*
+- [[ms-shift-spy]] — ms_shift on SPY/QQQ; displacement-filtered
+  structure breaks; `research`.
 
 ## Concepts
 
