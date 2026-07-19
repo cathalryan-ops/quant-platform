@@ -1,0 +1,18 @@
+# quant-platform schedules — GENERATED 2026-07-19 from the NYSE calendar.
+# Mirrors Paperclip heartbeats so trading-critical jobs survive the
+# dashboard being down. All jobs go through run_agent.sh (freeze/kill gates
+# + audit log).
+SHELL=/bin/bash
+QP=/workspace/quant-platform
+
+# Research orchestrator: daily, NYSE open minus 90 minutes (12:00 UTC)
+0 12 * * 1-5 $QP/infra/cron/run_agent.sh research-orchestrator echo "TODO: claude -p agents/research-orchestrator.md"
+
+# Ranker + postmortem analyst: NYSE close plus 60 minutes (21:00 UTC)
+0 21 * * 1-5 $QP/infra/cron/run_agent.sh ranker bash -c 'cd $QP/sandbox/backtest && uv run ranker'
+
+# Vault hygiene: /lint + /digest nightly 03:00 UTC
+0 3 * * * $QP/infra/cron/run_agent.sh vault-ops echo "TODO: claude -p /lint then /digest"
+
+# Telegram bridge liveness (restart if dead) every 5 minutes
+*/5 * * * * pgrep -f telegram-bridge > /dev/null || (cd $QP/infra/telegram && nohup uv run telegram-bridge >> bridge.log 2>&1 &)

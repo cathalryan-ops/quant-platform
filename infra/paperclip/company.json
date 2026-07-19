@@ -1,0 +1,52 @@
+{
+  "company": "quant-platform",
+  "currency": "USD",
+  "budget_policy": {
+    "on_exhausted": "freeze_entire_loop",
+    "hook": "infra/paperclip/on_budget_exhausted.sh",
+    "note": "Any single agent exhausting its monthly budget freezes ALL agents (FROZEN file) and pushes a critical Telegram event. Resumption is a human act: delete infra/paperclip/FROZEN."
+  },
+  "org": [
+    {
+      "role": "research-orchestrator",
+      "model": "opus",
+      "prompt": "agents/research-orchestrator.md",
+      "monthly_budget_usd": 150,
+      "heartbeat": "pre_us_open_daily",
+      "reports": [
+        { "role": "researcher-triage", "model": "haiku", "prompt": "agents/researcher-triage.md", "monthly_budget_usd": 20 },
+        { "role": "researcher-deep", "model": "sonnet", "prompt": "agents/researcher-deep.md", "monthly_budget_usd": 60 }
+      ]
+    },
+    {
+      "role": "ranker",
+      "model": "opus",
+      "prompt": "agents/ranker.md",
+      "monthly_budget_usd": 80,
+      "heartbeat": "post_us_close_daily"
+    },
+    {
+      "role": "vault-ops",
+      "model": "haiku",
+      "prompt": ".claude/skills/lint/SKILL.md + .claude/skills/digest/SKILL.md",
+      "monthly_budget_usd": 25,
+      "heartbeat": "nightly"
+    },
+    {
+      "role": "postmortem-analyst",
+      "model": "sonnet",
+      "prompt": "agents/postmortem-analyst.md",
+      "monthly_budget_usd": 40,
+      "heartbeat": "post_us_close_daily"
+    }
+  ],
+  "heartbeats": {
+    "pre_us_open_daily": "computed: NYSE open minus 90 minutes — regenerate with infra/cron/compute_schedule.py, never hardcode UTC hours",
+    "post_us_close_daily": "computed: NYSE close plus 60 minutes",
+    "nightly": "03:00 UTC"
+  },
+  "audit": {
+    "requirement": "every agent run appears in the audit trail with token cost",
+    "wrapper": "infra/cron/run_agent.sh"
+  }
+}
