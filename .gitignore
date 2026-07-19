@@ -1,0 +1,25 @@
+# Secrets — never committed
+.env
+.env.*
+*.pem
+
+# Rust
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data snapshots (parquet cache; results reference them by content hash)
+data/*
+!data/.gitkeep
+
+# Obsidian workspace state (machine-local, not knowledge)
+brain/.obsidian/workspace.json
+brain/.obsidian/workspace-mobile.json
+brain/.obsidian/cache/
+
+# Node (infra/telegram, infra/paperclip)
+node_modules/

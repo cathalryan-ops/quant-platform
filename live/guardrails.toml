@@ -1,0 +1,11 @@
+# live/guardrails.toml — HUMAN-EDITABLE ONLY. Agents read, never write.
+# Values ratified 2026-07-19 (architecture.md §2.2).
+
+[capital]
+base_capital_usd = 100000
+environment = "paper"          # "paper" | "real" — flipping this is a human act
+
+[limits]
+max_position_pct = 5.0         # $5,000 at base capital
+max_daily_loss_pct = 2.0       # $2,000 — circuit breaker threshold
+max_order_rate_per_min = 10    # sanity cap; swing trading never needs more

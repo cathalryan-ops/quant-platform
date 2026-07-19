@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "engine-core",
+    "sandbox/paper-engine",
+    "live",
+]
+
+[workspace.package]
+edition = "2021"
+license = "UNLICENSED"
+publish = false

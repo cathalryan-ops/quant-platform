@@ -1,0 +1,15 @@
+# contracts/promotion_thresholds.toml — HUMAN-EDITABLE ONLY. Agents read, never write.
+# Promotion criteria consumed by the ranker (P7). Initial values are
+# deliberately conservative; loosen by human edit only, never by an agent.
+
+[backtest_to_paper]
+min_walkforward_sharpe = 1.0
+min_walkforward_sortino = 1.2
+max_drawdown_pct = 15.0
+
+[paper_to_live]
+min_paper_days = 10
+min_paper_sharpe = 0.8
+max_paper_drawdown_pct = 10.0
+# Note: meeting these thresholds makes a strategy ELIGIBLE for live promotion.
+# The two-step Telegram human approval is always required on top.
