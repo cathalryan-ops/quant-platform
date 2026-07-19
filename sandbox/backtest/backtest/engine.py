@@ -9,6 +9,7 @@ doesn't peek."""
 from __future__ import annotations
 
 import datetime as dt
+import json
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -206,6 +207,20 @@ def run_backtest(
 
     result_path = out_dir / "backtest_result.json"
     result_path.write_text(result.model_dump_json(indent=2) + "\n")
+
+    # ADR 0002: export the fitted signal as a parameterised ruleset for the
+    # Rust paper/live engines, with the snapshot provenance of the fit.
+    params = getattr(signal, "export_params", lambda: None)()
+    if params is not None:
+        ruleset = {
+            "schema_version": "1.0.0",
+            "strategy_id": manifest.id,
+            "family": manifest.family,
+            "max_position_pct": manifest.risk.max_position_pct,
+            "params": params,
+            "data_snapshot": result.data_snapshot.model_dump(),
+        }
+        (out_dir / "ruleset.json").write_text(json.dumps(ruleset, indent=2) + "\n")
     return result_path
 
 

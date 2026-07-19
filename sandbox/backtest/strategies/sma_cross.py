@@ -19,3 +19,7 @@ class Signal:
         fast = close.rolling(self.fast).mean()
         slow = close.rolling(self.slow).mean()
         return (fast > slow).astype(float)
+
+    def export_params(self) -> dict:
+        """Fitted parameters for the Rust engines (ADR 0002 ruleset)."""
+        return {"type": "sma_cross", "fast": self.fast, "slow": self.slow}
