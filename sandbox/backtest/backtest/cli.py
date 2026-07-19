@@ -10,9 +10,11 @@ from pathlib import Path
 from contracts import StrategyManifest
 
 from .engine import find_repo_root, run_backtest
+from .env import load_env
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_env()  # Alpaca keys from repo-root .env, if present
     parser = argparse.ArgumentParser(prog="backtest")
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--start", required=True, help="YYYY-MM-DD")

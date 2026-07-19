@@ -9,6 +9,7 @@ publish.workspace = true
 # Its runtime environment is the only place live trading keys may exist.
 [dependencies]
 chrono = "0.4"
+dotenvy = "0.15.7"
 engine-core = { path = "../engine-core" }
 paper-engine = { path = "../sandbox/paper-engine" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

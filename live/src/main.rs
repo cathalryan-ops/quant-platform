@@ -60,6 +60,8 @@ async fn main() -> Result<(), String> {
 
     let repo_root = find_repo_root(&std::env::current_dir().map_err(|e| e.to_string())?)
         .ok_or("no repo root")?;
+    // Alpaca credentials from the repo-root .env (real env vars still win).
+    let _ = dotenvy::from_path(repo_root.join(".env"));
     let checks = startup::check(&repo_root, &manifest.id, mode, real_flag)?;
     tracing::info!(approval = ?checks.approval_path, ?mode, "startup checks passed");
 

@@ -11,6 +11,7 @@ publish.workspace = true
 # exists in this dependency tree.
 [dependencies]
 chrono = "0.4"
+dotenvy = "0.15.7"
 engine-core = { path = "../../engine-core" }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }

@@ -113,9 +113,19 @@ class Bridge:
             core.mark_sent(event)
 
 
+def _load_env(repo_root: Path) -> None:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    if (repo_root / ".env").is_file():
+        load_dotenv(repo_root / ".env", override=False)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     repo_root = core.find_repo_root(Path.cwd())
+    _load_env(repo_root)  # bot token + owner id from repo-root .env, if present
     bridge = Bridge(repo_root)
     app = Application.builder().token(os.environ["TELEGRAM_BOT_TOKEN"]).build()
     app.add_handler(CommandHandler("status", bridge.cmd_status))

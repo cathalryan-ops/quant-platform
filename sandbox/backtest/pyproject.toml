@@ -9,6 +9,7 @@ dependencies = [
     "pandas-market-calendars>=5.4.0",
     "pyarrow>=25.0.0",
     "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
     "vectorbt>=1.1.0",
 ]
 
