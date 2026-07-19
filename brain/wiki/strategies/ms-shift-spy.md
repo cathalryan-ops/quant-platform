@@ -55,6 +55,7 @@ displacement premise is false regardless of overall profitability.
 
 - Source primer: [market structure basics](../../raw/sample-market-structure-primer.md)
 - Concepts: [[market-structure-shift]], [[displacement]]
+- Postmortems: [[ms-shift-spy-example]]
 
 ## Lifecycle history
 

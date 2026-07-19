@@ -17,4 +17,5 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 
 ## Postmortems
 
-*(none yet)*
+- [[ms-shift-spy-example]] — worked-example paper review for
+  ms-shift-spy-v1 (P9 template demonstration).

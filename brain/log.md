@@ -8,3 +8,4 @@ Chronology of every ingestion and vault operation. Append-only.
 - 2026-07-19 — sync — 1 source processed, 2 pages touched
 - 2026-07-19 — proposal — research orchestrator accepted strategies/ms-shift-spy.md (ms-shift-spy-v1, lifecycle research)
 - 2026-07-19 — digest — 1 proposal, 2 concept pages summarised to Telegram queue
+- 2026-07-19 — postmortem — worked example postmortems/ms-shift-spy-example.md linked to strategies/ms-shift-spy.md (P9 demo)
