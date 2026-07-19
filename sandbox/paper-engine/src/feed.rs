@@ -8,6 +8,9 @@ use crate::alpaca::AlpacaFeed;
 pub enum AnyFeed {
     Sim(SimFeed),
     Alpaca(Box<AlpacaFeed>),
+    /// Pre-scripted sessions, for tests that need exact price paths
+    /// (e.g. crafting a crash to trip the circuit breaker).
+    Script(std::vec::IntoIter<Vec<Bar>>),
 }
 
 impl AnyFeed {
@@ -16,6 +19,7 @@ impl AnyFeed {
         match self {
             AnyFeed::Sim(f) => Ok(f.next_session()),
             AnyFeed::Alpaca(f) => f.next_session().await,
+            AnyFeed::Script(iter) => Ok(iter.next()),
         }
     }
 }
