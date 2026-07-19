@@ -13,6 +13,7 @@ dependencies = [
 
 [project.scripts]
 backtest = "backtest.cli:main"
+ranker = "ranker:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -23,6 +24,7 @@ packages = ["backtest"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "contracts.py" = "contracts.py"
+"ranker.py" = "ranker.py"
 
 [dependency-groups]
 dev = [
