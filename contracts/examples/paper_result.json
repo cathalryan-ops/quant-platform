@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "strategy_id": "ms-shift-spy-v1",
+  "period": {
+    "start": "2026-06-01",
+    "end": "2026-06-30"
+  },
+  "metrics": {
+    "sharpe": 0.94,
+    "sortino": 1.1,
+    "max_drawdown_pct": 4.2,
+    "pnl_usd": 412.55,
+    "num_trades": 9
+  },
+  "slippage": {
+    "model": "quote_mid_plus_bps",
+    "bps": 3.0
+  },
+  "equity_curve_path": "data/results/ms-shift-spy-v1/paper_equity_2026-06.png",
+  "data_snapshot": {
+    "parquet_path": "data/us_equities/daily/SPY_QQQ_2018-2026.parquet",
+    "content_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "source_feed": "alpaca_iex_daily",
+    "period": {
+      "start": "2018-01-02",
+      "end": "2026-06-30"
+    }
+  },
+  "passed_thresholds": true,
+  "notes": "Fitted parameters from the referenced backtest snapshot; live-quote simulated fills.",
+  "generated_at": "2026-06-30T21:05:00Z"
+}

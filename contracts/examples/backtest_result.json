@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "strategy_id": "ms-shift-spy-v1",
+  "period": {
+    "start": "2018-01-02",
+    "end": "2026-06-30"
+  },
+  "metrics": {
+    "sharpe": 1.31,
+    "sortino": 1.62,
+    "max_drawdown_pct": 9.4,
+    "turnover": 12.5
+  },
+  "slippage": {
+    "model": "fixed_bps",
+    "bps": 5.0
+  },
+  "equity_curve_path": "data/results/ms-shift-spy-v1/backtest_equity.png",
+  "data_snapshot": {
+    "parquet_path": "data/us_equities/daily/SPY_QQQ_2018-2026.parquet",
+    "content_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "source_feed": "alpaca_iex_daily",
+    "period": {
+      "start": "2018-01-02",
+      "end": "2026-06-30"
+    }
+  },
+  "passed_thresholds": true,
+  "notes": "Six walk-forward splits, all positive; worst split Sharpe 0.7 in 2022.",
+  "generated_at": "2026-07-19T18:30:00Z"
+}

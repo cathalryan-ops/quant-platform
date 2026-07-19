@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quant-platform.invalid/contracts/paper_result/1.0.0",
+  "title": "PaperResult",
+  "description": "Appended daily by the paper engine for each strategy at lifecycle 'paper'. data_snapshot records the provenance of the strategy's fitted parameters (the backtest snapshot they were fitted on).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy_id",
+    "period",
+    "metrics",
+    "slippage",
+    "equity_curve_path",
+    "data_snapshot",
+    "passed_thresholds",
+    "notes",
+    "generated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "strategy_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "period": { "$ref": "#/$defs/date_period" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sharpe", "sortino", "max_drawdown_pct", "pnl_usd", "num_trades"],
+      "properties": {
+        "sharpe": { "type": "number" },
+        "sortino": { "type": "number" },
+        "max_drawdown_pct": { "type": "number", "minimum": 0 },
+        "pnl_usd": { "type": "number" },
+        "num_trades": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "slippage": { "$ref": "#/$defs/slippage_assumptions" },
+    "equity_curve_path": { "type": "string" },
+    "data_snapshot": { "$ref": "#/$defs/data_snapshot" },
+    "passed_thresholds": {
+      "type": "boolean",
+      "description": "Checked against contracts/promotion_thresholds.toml [paper_to_live]."
+    },
+    "notes": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "date_period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      }
+    },
+    "slippage_assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "bps"],
+      "properties": {
+        "model": { "type": "string" },
+        "bps": { "type": "number", "minimum": 0 }
+      }
+    },
+    "data_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parquet_path", "content_hash", "source_feed", "period"],
+      "properties": {
+        "parquet_path": { "type": "string" },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "source_feed": { "type": "string" },
+        "period": { "$ref": "#/$defs/date_period" }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quant-platform.invalid/contracts/events/1.0.0",
+  "title": "Event",
+  "description": "One envelope for everything sent to Telegram or logged to the dashboard. The bridge batches info/warning into digests and sends high/critical immediately.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "source_agent",
+    "severity",
+    "kind",
+    "payload",
+    "requires_reply",
+    "ts"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Unique event id for dedupe, e.g. evt-2026-07-19-0001."
+    },
+    "source_agent": { "type": "string", "minLength": 1 },
+    "severity": { "enum": ["info", "warning", "high", "critical"] },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. daily_digest, promotion_request, circuit_breaker, budget_freeze, halt_confirmed."
+    },
+    "payload": { "type": "object" },
+    "requires_reply": { "type": "boolean" },
+    "ts": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "id": "ms-shift-spy-v1",
+  "wiki_page": "brain/wiki/strategies/ms-shift-spy.md",
+  "market": "us_equities",
+  "family": "ms_shift",
+  "universe": ["SPY", "QQQ"],
+  "hypothesis": "A confirmed daily market-structure shift (break of the prior swing high with displacement, after a sequence of lower highs) precedes multi-day continuation in the break direction often enough to clear costs. Falsified if walk-forward Sharpe over 2018-2026 daily bars is below 1.0 after fees and 5 bps slippage.",
+  "signal_spec": {
+    "language": "python",
+    "entrypoint": "strategies/ms_shift_spy.py:Signal"
+  },
+  "risk": {
+    "max_position_pct": 5.0,
+    "stop_loss_pct": 2.0
+  },
+  "lifecycle": "research",
+  "scorecard": {
+    "sharpe_wf": null,
+    "sortino_wf": null,
+    "max_drawdown_bt": null,
+    "sharpe_paper": null,
+    "max_drawdown_paper": null,
+    "pnl_live": null,
+    "rank": null
+  }
+}

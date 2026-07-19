@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quant-platform.invalid/contracts/backtest_result/1.0.0",
+  "title": "BacktestResult",
+  "description": "Output of one walk-forward backtest run. Reproducible bit-for-bit from the pinned data_snapshot; a result whose snapshot hash no longer matches is invalid and the ranker must ignore it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy_id",
+    "period",
+    "metrics",
+    "slippage",
+    "equity_curve_path",
+    "data_snapshot",
+    "passed_thresholds",
+    "notes",
+    "generated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "strategy_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "period": { "$ref": "#/$defs/date_period" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sharpe", "sortino", "max_drawdown_pct", "turnover"],
+      "properties": {
+        "sharpe": { "type": "number", "description": "Walk-forward Sharpe." },
+        "sortino": { "type": "number", "description": "Walk-forward Sortino." },
+        "max_drawdown_pct": { "type": "number", "minimum": 0 },
+        "turnover": { "type": "number", "minimum": 0 }
+      }
+    },
+    "slippage": { "$ref": "#/$defs/slippage_assumptions" },
+    "equity_curve_path": { "type": "string" },
+    "data_snapshot": { "$ref": "#/$defs/data_snapshot" },
+    "passed_thresholds": {
+      "type": "boolean",
+      "description": "Checked against contracts/promotion_thresholds.toml [backtest_to_paper]."
+    },
+    "notes": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "date_period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      }
+    },
+    "slippage_assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "bps"],
+      "properties": {
+        "model": { "type": "string", "description": "e.g. fixed_bps." },
+        "bps": { "type": "number", "minimum": 0 }
+      }
+    },
+    "data_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parquet_path", "content_hash", "source_feed", "period"],
+      "properties": {
+        "parquet_path": { "type": "string" },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "source_feed": { "type": "string", "description": "e.g. alpaca_iex_daily." },
+        "period": { "$ref": "#/$defs/date_period" }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "id": "promo-2026-07-19-ms-shift-spy-v1-live",
+  "strategy_id": "ms-shift-spy-v1",
+  "from_stage": "paper",
+  "to_stage": "live",
+  "evidence": [
+    "data/results/ms-shift-spy-v1/backtest_result.json",
+    "data/results/ms-shift-spy-v1/paper_result_2026-06.json"
+  ],
+  "rationale": "Walk-forward Sharpe 1.31 and paper Sharpe 0.94 over 21 sessions both clear [paper_to_live] thresholds; drawdown well inside limits. Slippage realised within 1 bps of model.",
+  "issued_at": "2026-07-19T19:00:00Z",
+  "human_approval": {
+    "required": true,
+    "telegram_msg_id": 1024,
+    "confirmation_msg_id": 1031,
+    "approved_at": "2026-07-19T19:05:00Z"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quant-platform.invalid/contracts/promotion/1.0.0",
+  "title": "Promotion",
+  "description": "A lifecycle transition issued by the ranker. A to_stage of 'live' is schema-invalid without a complete two-step human_approval (both Telegram message ids + timestamp); runtime components must additionally re-verify this before acting.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "strategy_id",
+    "from_stage",
+    "to_stage",
+    "evidence",
+    "rationale",
+    "issued_at",
+    "human_approval"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Unique promotion record id, e.g. promo-2026-07-19-ms-shift-spy-v1-live."
+    },
+    "strategy_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "from_stage": { "$ref": "#/$defs/lifecycle" },
+    "to_stage": { "$ref": "#/$defs/lifecycle" },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Repo-relative paths of the result files justifying the transition."
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Also written to the strategy's wiki page (value backprop)."
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "human_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "telegram_msg_id", "confirmation_msg_id", "approved_at"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "telegram_msg_id": {
+          "type": ["integer", "null"],
+          "description": "Message id of the /approve exchange."
+        },
+        "confirmation_msg_id": {
+          "type": ["integer", "null"],
+          "description": "Message id of the CONFIRM <id> reply (second step)."
+        },
+        "approved_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "to_stage": { "const": "live" } }
+      },
+      "then": {
+        "properties": {
+          "human_approval": {
+            "properties": {
+              "required": { "const": true },
+              "telegram_msg_id": { "type": "integer" },
+              "confirmation_msg_id": { "type": "integer" },
+              "approved_at": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "lifecycle": {
+      "enum": ["research", "backtest", "paper", "live", "retired"]
+    }
+  }
+}

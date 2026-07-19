@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quant-platform.invalid/contracts/strategy_manifest/1.0.0",
+  "title": "StrategyManifest",
+  "description": "The unit of exchange between brain -> sandbox -> live. Embedded as a fenced JSON block in the strategy's wiki page, which is the single source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "wiki_page",
+    "market",
+    "family",
+    "universe",
+    "hypothesis",
+    "signal_spec",
+    "risk",
+    "lifecycle",
+    "scorecard"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Stable kebab-case identifier, e.g. ms-shift-spy-v1."
+    },
+    "wiki_page": {
+      "type": "string",
+      "description": "Repo-relative path of the strategy's wiki page."
+    },
+    "market": {
+      "enum": ["us_equities", "polymarket"],
+      "description": "polymarket is reserved for v2: schema-valid but REJECTED by every v1 runtime component."
+    },
+    "family": {
+      "enum": ["ms_shift", "swing"],
+      "description": "v1 strategy families: daily market-structure shift, multi-day swing."
+    },
+    "universe": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9.]{0,9}$" }
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One-paragraph falsifiable claim."
+    },
+    "signal_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "entrypoint"],
+      "properties": {
+        "language": { "const": "python" },
+        "entrypoint": {
+          "type": "string",
+          "description": "module_path.py:ClassName implementing the Signal protocol."
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_position_pct", "stop_loss_pct"],
+      "properties": {
+        "max_position_pct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "Runtime-validated against the guardrails.toml cap; manifests exceeding it are rejected."
+        },
+        "stop_loss_pct": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "lifecycle": {
+      "enum": ["research", "backtest", "paper", "live", "retired"]
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Performance Score Card (no Elo in v1). Nulls until the corresponding stage produces results.",
+      "required": [
+        "sharpe_wf",
+        "sortino_wf",
+        "max_drawdown_bt",
+        "sharpe_paper",
+        "max_drawdown_paper",
+        "pnl_live",
+        "rank"
+      ],
+      "properties": {
+        "sharpe_wf": { "type": ["number", "null"] },
+        "sortino_wf": { "type": ["number", "null"] },
+        "max_drawdown_bt": { "type": ["number", "null"] },
+        "sharpe_paper": { "type": ["number", "null"] },
+        "max_drawdown_paper": { "type": ["number", "null"] },
+        "pnl_live": { "type": ["number", "null"] },
+        "rank": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    }
+  }
+}

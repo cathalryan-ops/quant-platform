@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "id": "evt-2026-07-19-0001",
+  "source_agent": "ranker",
+  "severity": "high",
+  "kind": "promotion_request",
+  "payload": {
+    "promotion_id": "promo-2026-07-19-ms-shift-spy-v1-live",
+    "strategy_id": "ms-shift-spy-v1",
+    "to_stage": "live"
+  },
+  "requires_reply": true,
+  "ts": "2026-07-19T19:00:05Z"
+}
