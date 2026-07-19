@@ -16,9 +16,12 @@ jobs:
 
   python:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [sandbox/backtest, infra/telegram]
     defaults:
       run:
-        working-directory: sandbox/backtest
+        working-directory: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
