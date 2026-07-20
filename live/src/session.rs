@@ -157,6 +157,26 @@ pub async fn run(
         let prev_equity = state.equity_curve.last().copied();
         let mut orders_this_session: u32 = 0;
 
+        // Advance the stop-loss overlay for every symbol up front, before
+        // any order-placement logic that might `break` out early (e.g. the
+        // per-minute order-rate cap below). The overlay's re-arm/transition
+        // detection depends on seeing every session's raw weight for every
+        // symbol, in order — skipping a symbol some sessions (because the
+        // rate cap cut the loop short) would desync its "previous raw
+        // weight" bookkeeping from what the signal actually did.
+        let mut weights = BTreeMap::new();
+        for bar in &bars {
+            let raw_weight = ruleset.target_weight(&state.bars[&bar.symbol]);
+            let weight = state.apply_stop_loss(
+                &bar.symbol,
+                raw_weight,
+                bar.close,
+                bar.low,
+                manifest.risk.stop_loss_pct,
+            )?;
+            weights.insert(bar.symbol.clone(), weight);
+        }
+
         for bar in &bars {
             // ---- CIRCUIT BREAKER: checked inside the order path ----
             let equity_now = state.equity(&last_close);
@@ -164,7 +184,7 @@ pub async fn run(
                 return circuit_break(cfg, &mut state, broker, &last_close, &date).await;
             }
 
-            let weight = ruleset.target_weight(&state.bars[&bar.symbol]);
+            let weight = weights[&bar.symbol];
             let target_value =
                 (weight * ruleset.max_position_pct / 100.0 * equity_now).min(max_position_usd); // hard cap, guardrails
             let held = state.positions.get(&bar.symbol).copied().unwrap_or(0.0);

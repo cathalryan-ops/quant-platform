@@ -103,7 +103,7 @@ pub async fn run(
         if state.last_date.as_deref() >= Some(date.as_str()) {
             continue;
         }
-        process_session(&mut state, ruleset, &bars, cfg, window, &date);
+        process_session(&mut state, ruleset, manifest, &bars, cfg, window, &date)?;
         Journal::append(&cfg.journal_path, &state).map_err(|e| format!("journal: {e}"))?;
         tracing::info!(%date, equity = state.equity_curve.last(), "session processed");
     }
@@ -118,11 +118,12 @@ pub async fn run(
 fn process_session(
     state: &mut PortfolioState,
     ruleset: &Ruleset,
+    manifest: &StrategyManifest,
     bars: &[Bar],
     cfg: &SessionConfig,
     window: usize,
     date: &str,
-) {
+) -> Result<(), String> {
     let mut last_close = BTreeMap::new();
     for bar in bars {
         let win = state.bars.entry(bar.symbol.clone()).or_default();
@@ -135,7 +136,14 @@ fn process_session(
 
     let equity = state.equity(&last_close);
     for bar in bars {
-        let weight = ruleset.target_weight(&state.bars[&bar.symbol]);
+        let raw_weight = ruleset.target_weight(&state.bars[&bar.symbol]);
+        let weight = state.apply_stop_loss(
+            &bar.symbol,
+            raw_weight,
+            bar.close,
+            bar.low,
+            manifest.risk.stop_loss_pct,
+        )?;
         let target_value = weight * ruleset.max_position_pct / 100.0 * equity;
         let held_qty = state.positions.get(&bar.symbol).copied().unwrap_or(0.0);
         let delta_value = target_value - held_qty * bar.close;
@@ -166,6 +174,7 @@ fn process_session(
         state.first_date = Some(date.to_string());
     }
     state.last_date = Some(date.to_string());
+    Ok(())
 }
 
 fn write_result(
