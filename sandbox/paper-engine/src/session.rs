@@ -89,7 +89,7 @@ pub async fn run(
         tracing::info!(resume_after = ?state.last_date, "resuming from journal");
     }
 
-    let window = ruleset.lookback() * 2;
+    let window = ruleset.history_window();
     let mut halted = false;
 
     while let Some(bars) = feed.next_session().await? {
@@ -125,17 +125,17 @@ fn process_session(
 ) {
     let mut last_close = BTreeMap::new();
     for bar in bars {
-        let closes = state.closes.entry(bar.symbol.clone()).or_default();
-        closes.push_back(bar.close);
-        while closes.len() > window.max(1) {
-            closes.pop_front();
+        let win = state.bars.entry(bar.symbol.clone()).or_default();
+        win.push_back(bar.clone());
+        while win.len() > window.max(1) {
+            win.pop_front();
         }
         last_close.insert(bar.symbol.clone(), bar.close);
     }
 
     let equity = state.equity(&last_close);
     for bar in bars {
-        let weight = ruleset.target_weight(&state.closes[&bar.symbol]);
+        let weight = ruleset.target_weight(&state.bars[&bar.symbol]);
         let target_value = weight * ruleset.max_position_pct / 100.0 * equity;
         let held_qty = state.positions.get(&bar.symbol).copied().unwrap_or(0.0);
         let delta_value = target_value - held_qty * bar.close;

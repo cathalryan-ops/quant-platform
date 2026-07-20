@@ -77,12 +77,17 @@ impl SimFeed {
             let ret = (self.next_f64() - 0.5) * 0.02 + 0.0004;
             self.prices[i] *= 1.0 + ret;
             let c = self.prices[i];
+            // Variable intraday range (0.3%–2.3%) so occasional wide-range bars
+            // exist — a fixed band would make displacement-gated strategies
+            // (ms_shift) structurally unable to ever fire. Deterministic in the
+            // seed, so restart-equality tests are unaffected.
+            let span = c * (0.003 + self.next_f64() * 0.02);
             bars.push(Bar {
                 symbol: self.universe[i].clone(),
                 date: date.clone(),
-                open: c * 0.999,
-                high: c * 1.005,
-                low: c * 0.995,
+                open: c - span * 0.25,
+                high: c + span,
+                low: c - span,
                 close: c,
                 volume: 1_000_000.0,
             });

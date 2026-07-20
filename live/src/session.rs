@@ -120,7 +120,7 @@ pub async fn run(
         .unwrap_or_else(|| PortfolioState::new(guardrails.capital.base_capital_usd));
     reconcile(&mut state, broker, &cfg.repo_root).await?;
 
-    let window = ruleset.lookback() * 2;
+    let window = ruleset.history_window();
     let max_loss_usd =
         guardrails.capital.base_capital_usd * guardrails.limits.max_daily_loss_pct / 100.0;
     let max_position_usd =
@@ -144,10 +144,10 @@ pub async fn run(
 
         let mut last_close = BTreeMap::new();
         for bar in &bars {
-            let closes = state.closes.entry(bar.symbol.clone()).or_default();
-            closes.push_back(bar.close);
-            while closes.len() > window.max(1) {
-                closes.pop_front();
+            let win = state.bars.entry(bar.symbol.clone()).or_default();
+            win.push_back(bar.clone());
+            while win.len() > window.max(1) {
+                win.pop_front();
             }
             last_close.insert(bar.symbol.clone(), bar.close);
         }
@@ -164,7 +164,7 @@ pub async fn run(
                 return circuit_break(cfg, &mut state, broker, &last_close, &date).await;
             }
 
-            let weight = ruleset.target_weight(&state.closes[&bar.symbol]);
+            let weight = ruleset.target_weight(&state.bars[&bar.symbol]);
             let target_value =
                 (weight * ruleset.max_position_pct / 100.0 * equity_now).min(max_position_usd); // hard cap, guardrails
             let held = state.positions.get(&bar.symbol).copied().unwrap_or(0.0);

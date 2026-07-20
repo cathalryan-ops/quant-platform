@@ -68,8 +68,10 @@ pub struct PortfolioState {
     pub cash: f64,
     /// symbol -> signed quantity (v1 is long-only, so >= 0).
     pub positions: BTreeMap<String, f64>,
-    /// symbol -> rolling close window (bounded by the ruleset's lookback).
-    pub closes: BTreeMap<String, VecDeque<f64>>,
+    /// symbol -> rolling OHLC window (bounded by the ruleset's history window).
+    /// Full bars, not just closes, so price-action rulesets (swings, ranges)
+    /// can be interpreted.
+    pub bars: BTreeMap<String, VecDeque<Bar>>,
     /// First and last fully processed session dates (restart resume + result period).
     pub first_date: Option<String>,
     pub last_date: Option<String>,
@@ -84,7 +86,7 @@ impl PortfolioState {
         Self {
             cash,
             positions: BTreeMap::new(),
-            closes: BTreeMap::new(),
+            bars: BTreeMap::new(),
             first_date: None,
             last_date: None,
             fills: 0,
@@ -117,7 +119,17 @@ pub struct Ruleset {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RulesetParams {
-    SmaCross { fast: usize, slow: usize },
+    SmaCross {
+        fast: usize,
+        slow: usize,
+    },
+    /// Market-structure shift + displacement (mirrors
+    /// sandbox/backtest/strategies/ms_shift_spy.py; golden-tested).
+    MsShift {
+        swing_lookback: usize,
+        atr_period: usize,
+        displacement_mult: f64,
+    },
 }
 
 impl Ruleset {
@@ -126,32 +138,110 @@ impl Ruleset {
         serde_json::from_str(&raw).map_err(|e| format!("parse {path:?}: {e}"))
     }
 
-    /// Bars of history the interpreter needs before it can emit a weight.
-    pub fn lookback(&self) -> usize {
+    /// Bars of history the engine retains for this ruleset. It must be large
+    /// enough that the interpreter can re-derive its state from the window
+    /// alone. `ms_shift` is stateful (trend persists between shifts), so it
+    /// keeps a generous window — a position held longer than this with no
+    /// intervening shift is not expected at daily/swing cadence (ADR 0002).
+    pub fn history_window(&self) -> usize {
         match self.params {
-            RulesetParams::SmaCross { slow, .. } => slow,
+            RulesetParams::SmaCross { slow, .. } => slow * 2,
+            RulesetParams::MsShift { .. } => 400,
         }
     }
 
-    /// Target long weight in [0, 1] for one symbol given its close window
-    /// (oldest first, current session's close last). Mirrors the Python
-    /// Signal semantics exactly; golden-tested against the harness.
-    pub fn target_weight(&self, closes: &VecDeque<f64>) -> f64 {
+    /// Target long weight in [0, 1] for one symbol given its OHLC window
+    /// (oldest first, current session's bar last). Mirrors the Python Signal
+    /// semantics exactly; golden-tested against the harness.
+    pub fn target_weight(&self, bars: &VecDeque<Bar>) -> f64 {
         match self.params {
             RulesetParams::SmaCross { fast, slow } => {
-                if closes.len() < slow {
+                if bars.len() < slow {
                     return 0.0;
                 }
-                let mean_last =
-                    |n: usize| -> f64 { closes.iter().rev().take(n).sum::<f64>() / n as f64 };
+                let mean_last = |n: usize| -> f64 {
+                    bars.iter().rev().take(n).map(|b| b.close).sum::<f64>() / n as f64
+                };
                 if mean_last(fast) > mean_last(slow) {
                     1.0
                 } else {
                     0.0
                 }
             }
+            RulesetParams::MsShift {
+                swing_lookback,
+                atr_period,
+                displacement_mult,
+            } => ms_shift_weight(bars, swing_lookback, atr_period, displacement_mult),
         }
     }
+}
+
+/// Simple mean of the last `period` true ranges ending at t, or None if there
+/// is not enough history. Ascending accumulation order matches the Python
+/// implementation so the boundary comparisons agree bit-for-bit.
+fn atr_at(high: &[f64], low: &[f64], close: &[f64], t: usize, period: usize) -> Option<f64> {
+    if t < period {
+        return None;
+    }
+    let mut total = 0.0;
+    for i in (t - period + 1)..=t {
+        let tr_hl = high[i] - low[i];
+        let tr_hc = (high[i] - close[i - 1]).abs();
+        let tr_lc = (low[i] - close[i - 1]).abs();
+        total += tr_hl.max(tr_hc).max(tr_lc);
+    }
+    Some(total / period as f64)
+}
+
+fn is_swing_high(high: &[f64], i: usize, k: usize) -> bool {
+    if i < k || i + k >= high.len() {
+        return false;
+    }
+    (i - k..=i + k).all(|j| j == i || high[i] > high[j])
+}
+
+fn is_swing_low(low: &[f64], i: usize, k: usize) -> bool {
+    if i < k || i + k >= low.len() {
+        return false;
+    }
+    (i - k..=i + k).all(|j| j == i || low[i] < low[j])
+}
+
+/// Causal MS-shift trend at the latest bar of `bars` (recomputed from flat
+/// over the window). Byte-for-byte mirror of `_weights` in ms_shift_spy.py.
+fn ms_shift_weight(bars: &VecDeque<Bar>, k: usize, period: usize, mult: f64) -> f64 {
+    let n = bars.len();
+    let high: Vec<f64> = bars.iter().map(|b| b.high).collect();
+    let low: Vec<f64> = bars.iter().map(|b| b.low).collect();
+    let close: Vec<f64> = bars.iter().map(|b| b.close).collect();
+
+    let mut trend = 0.0;
+    let mut last_swing_high: Option<f64> = None;
+    let mut last_swing_low: Option<f64> = None;
+    for t in 0..n {
+        // Confirm the swing centred on t-k (window [t-2k, t], all <= t).
+        if t >= k {
+            let c = t - k;
+            if is_swing_high(&high, c, k) {
+                last_swing_high = Some(high[c]);
+            }
+            if is_swing_low(&low, c, k) {
+                last_swing_low = Some(low[c]);
+            }
+        }
+        if let Some(atr) = atr_at(&high, &low, &close, t, period) {
+            if atr > 0.0 {
+                let displaced = (high[t] - low[t]) >= mult * atr;
+                if displaced && last_swing_high.is_some_and(|sh| close[t] > sh) {
+                    trend = 1.0;
+                } else if displaced && last_swing_low.is_some_and(|sl| close[t] < sl) {
+                    trend = 0.0;
+                }
+            }
+        }
+    }
+    trend
 }
 
 /// Append-only JSONL state journal. One `PortfolioState` snapshot per
@@ -210,15 +300,28 @@ mod tests {
         .unwrap()
     }
 
+    fn bar_at(px: f64) -> Bar {
+        Bar {
+            symbol: "SPY".into(),
+            date: "2020-01-01".into(),
+            open: px,
+            high: px,
+            low: px,
+            close: px,
+            volume: 1.0,
+        }
+    }
+
+    fn window(prices: &[f64]) -> VecDeque<Bar> {
+        prices.iter().map(|&p| bar_at(p)).collect()
+    }
+
     #[test]
     fn sma_cross_weight_matches_python_semantics() {
         let r = ruleset();
-        let rising: VecDeque<f64> = [1.0, 2.0, 3.0].into_iter().collect();
-        let falling: VecDeque<f64> = [3.0, 2.0, 1.0].into_iter().collect();
-        let short: VecDeque<f64> = [1.0, 2.0].into_iter().collect();
-        assert_eq!(r.target_weight(&rising), 1.0); // fast SMA 2.5 > slow SMA 2.0
-        assert_eq!(r.target_weight(&falling), 0.0);
-        assert_eq!(r.target_weight(&short), 0.0); // not enough history
+        assert_eq!(r.target_weight(&window(&[1.0, 2.0, 3.0])), 1.0); // fast 2.5 > slow 2.0
+        assert_eq!(r.target_weight(&window(&[3.0, 2.0, 1.0])), 0.0);
+        assert_eq!(r.target_weight(&window(&[1.0, 2.0])), 0.0); // not enough history
     }
 
     #[test]
