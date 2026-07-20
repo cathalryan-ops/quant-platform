@@ -149,3 +149,18 @@ ones.
   already identified, and is testable on the same historical data
   without repeating the overfitting risk of re-tuning the same
   displacement knob a third time.
+- 2026-07-20 — engine gap closed, then structurally re-investigated —
+  `risk.stop_loss_pct` is now enforced. Plain enforcement made things
+  worse (same root cause as [[ms-shift-spy]]'s v1: a re-arm/trend-persistence
+  coupling bug — full mechanism at [[stop-loss-rearm-coupling]]), fixed
+  via a combined re-arm rule ("Option C", `stop_loss_cooldown_sessions`,
+  fixed at 10 sessions in advance — not re-tuned against this result,
+  consistent with the no-further-parameter-tuning caution above). Real
+  out-of-sample validation (`oos.py`, trailing 25% holdout covering the
+  same 2022-10→2023-07 window): the true original re-arm design is
+  OOS-rejected (+207.9% degradation vs the 35% threshold); Option C
+  passes cleanly (-61.8%, OOS *better* than in-sample). This validates
+  the re-arm fix structurally, not this strategy's promotion case —
+  `passed_thresholds` is still `false` with Option C (Sharpe ~0.76,
+  still below the 1.0 minimum, the same binding constraint as before).
+  This page stays `retired`.

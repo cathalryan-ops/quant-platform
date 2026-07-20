@@ -19,6 +19,10 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   sequence; core setup of the `ms_shift` family.
 - [[displacement]] — wide-range confirmation of a break; the quality filter
   for structure shifts.
+- [[stop-loss-rearm-coupling]] — why gating a stop's re-arm on the same
+  rare event a trend-persistent signal uses to reverse can lock a position
+  out of the exact recovery that would have vindicated it; the "Option C"
+  fix and its OOS validation on ms-shift-spy-v1/v2.
 
 ## Postmortems
 
