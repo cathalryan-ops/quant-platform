@@ -24,7 +24,22 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _strategy_page(strategy_id: str, family: str, lifecycle: str, scorecard: dict) -> str:
+def _strategy_page(
+    strategy_id: str,
+    family: str,
+    lifecycle: str,
+    scorecard: dict,
+    created: str = "2026-07-19",
+    history_bullets: list[str] | None = None,
+) -> str:
+    """Build a synthetic wiki page.
+
+    `history_bullets`, if given, is a list of pre-formatted markdown bullet
+    blocks (each a full '- YYYY-MM-DD — ...' string, optionally with extra
+    lines appended for continuation-line testing) rendered verbatim under
+    a '## Lifecycle history' heading. Omit it to get a page with no
+    Lifecycle history section at all (the empty-state case).
+    """
     manifest = {
         "schema_version": "1.0.0",
         "id": strategy_id,
@@ -39,9 +54,14 @@ def _strategy_page(strategy_id: str, family: str, lifecycle: str, scorecard: dic
         "scorecard": scorecard,
     }
     body = json.dumps(manifest, indent=2)
+
+    history_section = ""
+    if history_bullets:
+        history_section = "\n\n## Lifecycle history\n\n" + "\n".join(history_bullets) + "\n"
+
     return f"""---
 type: strategy
-created: 2026-07-19
+created: {created}
 ---
 
 # {strategy_id}
@@ -51,7 +71,7 @@ created: 2026-07-19
 ```strategy_manifest
 {body}
 ```
-"""
+{history_section}"""
 
 
 def _empty_scorecard(**overrides) -> dict:
@@ -98,6 +118,23 @@ def _event(event_id: str, severity: str, kind: str = "daily_digest") -> dict:
         "requires_reply": False,
         "ts": "2026-07-19T20:00:00Z",
     }
+
+
+def _lineage_section(html_out: str) -> str:
+    """Slice out just the 'Strategy lineage' section.
+
+    The flat, rank-sorted strategies table (a separate section, rendered
+    earlier in the document) also contains every strategy id as link text —
+    for null-ranked entries its order is a stable-sort artifact of
+    alphabetical file-glob order, NOT the lineage/version ordering under
+    test here. Any assertion about lineage ordering must search within this
+    slice, not the whole document, or it can pass by coincidence (when the
+    two orderings happen to agree) rather than actually testing lineage
+    order.
+    """
+    start = html_out.index('id="strategy-lineage"')
+    end = html_out.index('<section', start + 1)
+    return html_out[start:end]
 
 
 def _make_base_repo(root: Path) -> None:
@@ -222,6 +259,175 @@ class TestSyntheticRepo(unittest.TestCase):
         nested.mkdir(parents=True, exist_ok=True)
         found = generate.find_repo_root(nested)
         self.assertEqual(found, self.root)
+
+    def test_family_grouping_and_version_suffix_ordering(self) -> None:
+        # v2 written to disk (and created) BEFORE v1, to prove ordering
+        # comes from the '-vN' id suffix, not file order or creation date.
+        _write(
+            self.root / "brain/wiki/strategies/ms-shift-spy-v2.md",
+            _strategy_page(
+                "ms-shift-spy-v2", "ms_shift", "retired", _empty_scorecard(),
+                created="2026-01-01",
+            ),
+        )
+        _write(
+            self.root / "brain/wiki/strategies/ms-shift-spy-v1.md",
+            _strategy_page(
+                "ms-shift-spy-v1", "ms_shift", "retired", _empty_scorecard(),
+                created="2026-06-01",
+            ),
+        )
+        _write(
+            self.root / "brain/wiki/strategies/sma-cross-demo.md",
+            _strategy_page("sma-cross-demo", "swing", "research", _empty_scorecard()),
+        )
+
+        html_out = generate.render(self.root)
+        lineage = _lineage_section(html_out)
+
+        self.assertIn("ms_shift", lineage)
+        self.assertIn("swing", lineage)
+        # v1 must appear before v2 in the lineage view despite the reversed
+        # creation/file-write order.
+        idx_v1 = lineage.index("ms-shift-spy-v1<")
+        idx_v2 = lineage.index("ms-shift-spy-v2<")
+        self.assertLess(idx_v1, idx_v2)
+        # multi-member family gets a count suffix; single-member does not.
+        self.assertIn("ms_shift &mdash; 2 strategies", lineage)
+        self.assertNotIn("swing &mdash; 1 strategies", lineage)
+
+    def test_lineage_ordering_falls_back_to_created_date_without_version_suffix(self) -> None:
+        # Neither id has a '-vN' suffix, so ordering must fall back to the
+        # frontmatter created: date — 'zeta' (created first) before 'alpha'
+        # (created later), i.e. NOT alphabetical order.
+        _write(
+            self.root / "brain/wiki/strategies/zeta-strategy.md",
+            _strategy_page(
+                "zeta-strategy", "swing", "research", _empty_scorecard(),
+                created="2026-01-01",
+            ),
+        )
+        _write(
+            self.root / "brain/wiki/strategies/alpha-strategy.md",
+            _strategy_page(
+                "alpha-strategy", "swing", "research", _empty_scorecard(),
+                created="2026-06-01",
+            ),
+        )
+
+        lineage = _lineage_section(generate.render(self.root))
+        idx_zeta = lineage.index("zeta-strategy<")
+        idx_alpha = lineage.index("alpha-strategy<")
+        self.assertLess(
+            idx_zeta, idx_alpha, "earlier created: date must sort first, not alphabetical id"
+        )
+
+    def test_lineage_ordering_falls_back_to_alphabetical_with_no_created_date(self) -> None:
+        # Hand-write pages with no frontmatter at all (not even a created:
+        # field) — the last-resort fallback tier.
+        manifest_b = json.dumps(
+            {
+                "schema_version": "1.0.0", "id": "b-strategy",
+                "wiki_page": "brain/wiki/strategies/b-strategy.md",
+                "market": "us_equities", "family": "swing", "universe": ["SPY"],
+                "hypothesis": "x",
+                "signal_spec": {"language": "python", "entrypoint": "strategies/b.py:Signal"},
+                "risk": {"max_position_pct": 5.0, "stop_loss_pct": 2.0},
+                "lifecycle": "research", "scorecard": _empty_scorecard(),
+            }
+        )
+        manifest_a = manifest_b.replace('"id": "b-strategy"', '"id": "a-strategy"').replace(
+            "brain/wiki/strategies/b-strategy.md", "brain/wiki/strategies/a-strategy.md"
+        )
+        _write(
+            self.root / "brain/wiki/strategies/b-strategy.md",
+            f"# b-strategy\n\n```strategy_manifest\n{manifest_b}\n```\n",
+        )
+        _write(
+            self.root / "brain/wiki/strategies/a-strategy.md",
+            f"# a-strategy\n\n```strategy_manifest\n{manifest_a}\n```\n",
+        )
+
+        lineage = _lineage_section(generate.render(self.root))
+        idx_a = lineage.index("a-strategy<")
+        idx_b = lineage.index("b-strategy<")
+        self.assertLess(idx_a, idx_b, "with no version suffix or created: date, falls back to alphabetical")
+
+    def test_latest_lifecycle_history_bullet_shown_full_text_preserved_via_tooltip(self) -> None:
+        long_bullet = "- 2026-07-20 — retired — " + ("x" * 250)
+        _write(
+            self.root / "brain/wiki/strategies/multi-history.md",
+            _strategy_page(
+                "multi-history", "ms_shift", "retired", _empty_scorecard(),
+                history_bullets=[
+                    "- 2026-07-01 — created at `research` — first entry, must NOT be shown",
+                    "- 2026-07-10 — backtest — middle entry, must NOT be shown",
+                    long_bullet,
+                ],
+            ),
+        )
+        html_out = generate.render(self.root)
+        self.assertNotIn("first entry, must NOT be shown", html_out)
+        self.assertNotIn("middle entry, must NOT be shown", html_out)
+        # Truncated display text is present...
+        self.assertIn("x" * 195, html_out)
+        # ...and the FULL untruncated bullet is preserved somewhere (the
+        # title="" tooltip), not silently dropped.
+        self.assertIn("x" * 250, html_out)
+
+    def test_short_history_bullet_has_no_redundant_tooltip(self) -> None:
+        _write(
+            self.root / "brain/wiki/strategies/short-history.md",
+            _strategy_page(
+                "short-history", "swing", "research", _empty_scorecard(),
+                history_bullets=["- 2026-07-20 — created at `research` — short rationale"],
+            ),
+        )
+        html_out = generate.render(self.root)
+        self.assertIn("short rationale", html_out)
+        self.assertNotIn('title="- 2026-07-20', html_out)
+
+    def test_no_lifecycle_history_section_shows_placeholder(self) -> None:
+        _write(
+            self.root / "brain/wiki/strategies/no-history.md",
+            _strategy_page("no-history", "swing", "research", _empty_scorecard(), history_bullets=None),
+        )
+        html_out = generate.render(self.root)
+        self.assertIn("no Lifecycle history section", html_out)
+
+    def test_raw_note_linking_substring_match_and_no_false_positive(self) -> None:
+        _write(
+            self.root / "brain/wiki/strategies/ms-shift-spy-v1.md",
+            _strategy_page("ms-shift-spy-v1", "ms_shift", "retired", _empty_scorecard()),
+        )
+        _write(
+            self.root / "brain/wiki/strategies/sma-cross-demo.md",
+            _strategy_page("sma-cross-demo", "swing", "research", _empty_scorecard()),
+        )
+        _write(
+            self.root / "brain/raw/ms-shift-spy-v1-fold-regime-hypothesis.md",
+            "# fold regime hypothesis\n",
+        )
+        _write(self.root / "brain/raw/unrelated-note.md", "# unrelated\n")
+
+        html_out = generate.render(self.root)
+        self.assertIn("ms-shift-spy-v1-fold-regime-hypothesis", html_out)
+        # sma-cross-demo has no matching raw note and no strategy id is a
+        # substring of "unrelated-note" — must show the em-dash placeholder,
+        # and the unrelated note must not be linked to either strategy.
+        self.assertIn("&mdash;", html_out)
+        self.assertNotIn("unrelated-note", html_out)
+
+    def test_zero_raw_notes_is_handled_gracefully(self) -> None:
+        # No brain/raw/ directory at all — must not crash, every strategy's
+        # linked-notes column falls back to the em-dash placeholder.
+        _write(
+            self.root / "brain/wiki/strategies/solo-strategy.md",
+            _strategy_page("solo-strategy", "ms_shift", "research", _empty_scorecard()),
+        )
+        self.assertFalse((self.root / "brain" / "raw").exists())
+        html_out = generate.render(self.root)
+        self.assertIn("solo-strategy", html_out)
 
 
 class TestEmptyRepo(unittest.TestCase):

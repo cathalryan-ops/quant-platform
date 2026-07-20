@@ -50,6 +50,26 @@ STRATEGY_MANIFEST_FENCE_RE = re.compile(
     r"```strategy_manifest\s*\n(.*?)\n```", re.DOTALL
 )
 
+# YAML frontmatter block at the very top of a wiki page, e.g.:
+#   ---
+#   type: strategy
+#   created: 2026-07-19
+#   ---
+# Used only as a version-ordering fallback (see _lineage_sort_key) — this is
+# a narrow, single-field extraction, not a general YAML parser.
+FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+CREATED_RE = re.compile(r"^created:\s*(.+)$", re.MULTILINE)
+
+# The '## Lifecycle history' section, and the next '##'-level heading after
+# it (used to find where the section ends).
+LIFECYCLE_HISTORY_HEADING_RE = re.compile(
+    r"^##\s+Lifecycle history\s*$", re.MULTILINE | re.IGNORECASE
+)
+NEXT_HEADING_RE = re.compile(r"^##\s+", re.MULTILINE)
+
+# Trailing '-vN' version suffix on a strategy id, e.g. 'ms-shift-spy-v2' -> 2.
+VERSION_SUFFIX_RE = re.compile(r"-v(\d+)$", re.IGNORECASE)
+
 
 def _read_json(path: Path) -> Any | None:
     try:
@@ -102,7 +122,14 @@ def collect_strategies(repo_root: Path) -> list[dict[str, Any]]:
             results.append({"error": f"{rel_path}: manifest block is not valid JSON", "path": rel_path})
             continue
 
-        results.append({"path": rel_path, "manifest": manifest})
+        results.append(
+            {
+                "path": rel_path,
+                "manifest": manifest,
+                "created": _extract_frontmatter_created(text),
+                "lifecycle_history": _extract_lifecycle_history(text),
+            }
+        )
 
     return results
 
@@ -112,6 +139,116 @@ def _read_json_str(text: str) -> Any | None:
         return json.loads(text)
     except json.JSONDecodeError:
         return None
+
+
+def _extract_frontmatter_created(text: str) -> str | None:
+    """Pull the `created:` value out of a wiki page's YAML frontmatter.
+
+    Only used as a fallback for lineage ordering when a strategy id has no
+    detectable version suffix (see _lineage_sort_key) — deliberately not a
+    real YAML parser, just enough to grab one known scalar field.
+    """
+    fm_match = FRONTMATTER_RE.match(text)
+    if not fm_match:
+        return None
+    created_match = CREATED_RE.search(fm_match.group(1))
+    if not created_match:
+        return None
+    return created_match.group(1).strip()
+
+
+def _extract_lifecycle_history(text: str) -> list[str]:
+    """Return each '## Lifecycle history' bullet as one flattened string,
+    oldest first (document order), with the leading '- ' marker stripped.
+
+    The section is plain markdown: nominally one bullet per line
+    ('- YYYY-MM-DD — <lifecycle> — <text>'), but in practice long entries
+    get hand-wrapped onto continuation lines (indented, no leading '-')
+    rather than kept on one physical line. Continuation lines are folded
+    back onto the bullet they belong to (joined with a space) so none of
+    that text is silently dropped.
+    """
+    heading_match = LIFECYCLE_HISTORY_HEADING_RE.search(text)
+    if not heading_match:
+        return []
+
+    rest = text[heading_match.end():]
+    next_heading = NEXT_HEADING_RE.search(rest)
+    section = rest[: next_heading.start()] if next_heading else rest
+
+    bullets: list[str] = []
+    current: list[str] = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            if current:
+                bullets.append(" ".join(current))
+            current = [stripped[2:].strip()]
+        elif stripped:
+            # continuation of the current bullet (or stray text before the
+            # first bullet, which we just fold in rather than drop).
+            current.append(stripped)
+    if current:
+        bullets.append(" ".join(current))
+    return bullets
+
+
+def collect_raw_notes(repo_root: Path) -> list[str]:
+    """List every brain/raw/*.md file, repo-relative, sorted.
+
+    Used to link strategies to research notes purely by filename
+    substring match — see _linked_raw_notes.
+    """
+    raw_dir = repo_root / "brain" / "raw"
+    if not raw_dir.is_dir():
+        return []
+    return sorted(p.relative_to(repo_root).as_posix() for p in raw_dir.glob("*.md"))
+
+
+def _linked_raw_notes(strategy_id: str, raw_notes: list[str]) -> list[str]:
+    """Raw notes whose filename contains the strategy id as a substring.
+
+    This is a simple, naming-convention-based heuristic — there is no
+    formal cross-reference field between brain/raw/ notes and strategy
+    manifests in the schema, so filename substring matching is all we
+    have. It can both under-match (a relevant note named without the id)
+    and over-match (e.g. a hypothetical 'ms-shift-spy-v10' note's filename
+    also contains 'ms-shift-spy-v1' as a substring); treat the links shown
+    as a best-effort pointer, not a guaranteed/complete cross-reference.
+    """
+    return [note for note in raw_notes if strategy_id and strategy_id in Path(note).stem]
+
+
+def _lineage_sort_key(entry: dict[str, Any]) -> tuple:
+    """Order strategies within a family for the lineage view.
+
+    Priority:
+      1. A detectable trailing '-vN' version suffix on the id (e.g. 'v1'
+         before 'v2') — the common case for this repo's naming, and
+         unambiguous when present.
+      2. The wiki page's frontmatter `created:` date, for ids with no
+         version suffix — falls back to actual creation order, which is
+         the next-best proxy for "lineage order" we have without a
+         version marker.
+      3. Plain alphabetical id, if even `created:` is missing — a strategy
+         page failing to declare a page-level created date shouldn't be
+         able to sort itself arbitrarily; alphabetical keeps output at
+         least deterministic.
+    Buckets are numbered so version-suffixed ids always sort before
+    created-date-ordered ids, which sort before alphabetical-only ids;
+    within a bucket the comparison is homogeneous (int, then str, then
+    str), so tuple comparison never has to compare across types.
+    """
+    manifest = entry.get("manifest") or {}
+    strategy_id = str(manifest.get("id", ""))
+    created = entry.get("created")
+
+    version_match = VERSION_SUFFIX_RE.search(strategy_id)
+    if version_match:
+        return (0, int(version_match.group(1)), "", strategy_id)
+    if created:
+        return (1, 0, str(created), strategy_id)
+    return (2, 0, "", strategy_id)
 
 
 def _rank_sort_key(entry: dict[str, Any]) -> tuple:
@@ -237,6 +374,18 @@ def _esc(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _truncate(text: str, limit: int = 200) -> str:
+    """Truncate to ~limit chars on a word boundary, with a trailing ellipsis.
+
+    Callers that need the untruncated text (e.g. for a title="" tooltip)
+    should keep the original string around — this helper only returns the
+    shortened display copy.
+    """
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "…"
+
+
 def _fmt_num(value: Any) -> str:
     if value is None:
         return "—"
@@ -311,6 +460,82 @@ def _render_strategies(strategies: list[dict[str, Any]]) -> str:
         error_html = f'<div class="parse-errors"><strong>Parse errors:</strong><ul>{items}</ul></div>'
 
     return table + error_html
+
+
+def _render_strategy_lineage(strategies: list[dict[str, Any]], raw_notes: list[str]) -> str:
+    """Group strategies by family (lineage view), with per-strategy
+    rationale and linked research notes.
+
+    This is a second, complementary view of the same strategy data
+    _render_strategies renders flat and rank-sorted above — that table is
+    left untouched (it's still the right place to compare strategies
+    head-to-head on the scorecard, across families); this one is about
+    seeing which strategies descend from which within a family, and why
+    each one is at the lifecycle stage it's at.
+    """
+    ok = [s for s in strategies if "manifest" in s]
+    if not ok:
+        return '<p class="empty">No strategies yet &mdash; nothing in brain/wiki/strategies/.</p>'
+
+    families: dict[str, list[dict[str, Any]]] = {}
+    for entry in ok:
+        family = entry["manifest"].get("family") or "(no family)"
+        families.setdefault(family, []).append(entry)
+
+    blocks = []
+    for family in sorted(families.keys()):
+        members = sorted(families[family], key=_lineage_sort_key)
+
+        rows = []
+        for entry in members:
+            m = entry["manifest"]
+            strategy_id = m.get("id", "?")
+            lifecycle = m.get("lifecycle", "?")
+            lifecycle_class = LIFECYCLE_CLASS.get(lifecycle, "")
+
+            history = entry.get("lifecycle_history") or []
+            if history:
+                latest = history[-1]
+                truncated = _truncate(latest)
+                if truncated != latest:
+                    rationale_html = (
+                        f'<span class="rationale" title="{_esc(latest)}">{_esc(truncated)}</span>'
+                    )
+                else:
+                    rationale_html = f'<span class="rationale">{_esc(truncated)}</span>'
+            else:
+                rationale_html = '<span class="empty">no Lifecycle history section</span>'
+
+            linked = _linked_raw_notes(strategy_id, raw_notes)
+            if linked:
+                notes_html = ", ".join(
+                    f'<a href="../../{_esc(note)}">{_esc(Path(note).stem)}</a>' for note in linked
+                )
+            else:
+                notes_html = '<span class="muted">&mdash;</span>'
+
+            rows.append(
+                "<tr>"
+                f'<td><a href="../../{_esc(entry["path"])}">{_esc(strategy_id)}</a></td>'
+                f'<td><span class="lifecycle-badge {lifecycle_class}">{_esc(lifecycle)}</span></td>'
+                f'<td>{rationale_html}</td>'
+                f'<td>{notes_html}</td>'
+                "</tr>"
+            )
+
+        table = (
+            '<table class="data-table lineage-table">'
+            "<thead><tr><th>id</th><th>lifecycle</th>"
+            "<th>latest lifecycle-history rationale</th><th>related raw notes</th>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+        )
+        count_suffix = f" &mdash; {len(members)} strategies" if len(members) > 1 else ""
+        blocks.append(
+            f'<div class="family-block"><h3 class="family-heading">{_esc(family)}{count_suffix}</h3>'
+            f"{table}</div>"
+        )
+
+    return "".join(blocks)
 
 
 def _render_promotions(promotions: dict[str, list[dict[str, Any]]]) -> str:
@@ -543,6 +768,18 @@ a:hover { text-decoration: underline; }
 .sev-high { color: #ff9a5c; }
 .sev-critical { color: var(--red); }
 .queue-total { margin-top: 0; }
+.family-block { margin-bottom: 18px; }
+.family-block:last-child { margin-bottom: 0; }
+.family-heading {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+.lineage-table td { white-space: normal; }
+.rationale { cursor: help; }
 .postmortem-list { padding-left: 20px; }
 .rejected-details { margin-top: 10px; color: var(--muted); font-size: 0.85rem; }
 .rejected-details summary { cursor: pointer; }
@@ -566,6 +803,7 @@ def render(repo_root: Path) -> str:
     """
     kill_freeze = collect_kill_freeze(repo_root)
     strategies = collect_strategies(repo_root)
+    raw_notes = collect_raw_notes(repo_root)
     promotions = collect_promotions(repo_root)
     queue = collect_queue(repo_root)
     postmortems = collect_postmortems(repo_root)
@@ -587,8 +825,13 @@ def render(repo_root: Path) -> str:
   </section>
 
   <section id="strategies">
-    <h2>Strategies</h2>
+    <h2>Strategies &mdash; ranked by walk-forward Sharpe</h2>
     {_render_strategies(strategies)}
+  </section>
+
+  <section id="strategy-lineage">
+    <h2>Strategy lineage &mdash; by family</h2>
+    {_render_strategy_lineage(strategies, raw_notes)}
   </section>
 
   <section id="promotions">
