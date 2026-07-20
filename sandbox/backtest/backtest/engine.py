@@ -31,6 +31,7 @@ from contracts import (
 )
 
 from .data import Snapshot, bar_frame, close_matrix, default_snapshot_path, load_snapshot
+from .oos import check_out_of_sample
 from .risk import apply_stop_loss
 from .signal import generate_checked, load_signal
 from .thresholds import BacktestThresholds
@@ -89,6 +90,20 @@ def _annualized_sortino(returns: np.ndarray) -> float:
     return float(returns.mean() / downside * np.sqrt(TRADING_DAYS))
 
 
+def _oos_note(oos_check, oos_fraction: float, oos_reject_threshold: float) -> str:
+    verdict = "PASSED" if oos_check.passed else "REJECTED"
+    degradation = (
+        "no positive in-sample edge (Sharpe <= 0), OOS not meaningfully comparable"
+        if oos_check.degradation_pct == float("inf")
+        else f"{oos_check.degradation_pct:+.1%} degradation vs {oos_reject_threshold:.0%} threshold"
+    )
+    return (
+        f" OOS holdout (trailing {oos_fraction:.0%}, split {oos_check.split_date}): "
+        f"in-sample Sharpe {oos_check.in_sample_sharpe}, OOS Sharpe {oos_check.oos_sharpe} "
+        f"({degradation}) — {verdict}."
+    )
+
+
 def _walk_forward(returns: pd.Series, folds: int) -> tuple[float, float, list[float]]:
     fold_sharpes: list[float] = []
     fold_sortinos: list[float] = []
@@ -110,8 +125,19 @@ def run_backtest(
     out_dir: Path | None = None,
     fetch: bool = True,
     source_feed: str = "alpaca_iex_daily",
+    oos_fraction: float = 0.0,
+    oos_reject_threshold: float = 0.35,
 ) -> Path:
-    """Run one walk-forward backtest; returns the path of the written result JSON."""
+    """Run one walk-forward backtest; returns the path of the written result JSON.
+
+    `oos_fraction` (default 0.0, disabled) reserves the trailing fraction of
+    sessions as an out-of-sample holdout untouched by whatever process
+    chose this manifest's parameters — see oos.py. When enabled, a
+    configuration whose OOS Sharpe degrades by more than
+    `oos_reject_threshold` (fractional, default 0.35 = 35%) relative to its
+    in-sample Sharpe fails `passed_thresholds` regardless of the ordinary
+    walk-forward metrics, and the split is recorded in `notes`.
+    """
     import vectorbt as vbt
 
     guardrails = Guardrails.load(repo_root / "live" / "guardrails.toml")
@@ -141,7 +167,13 @@ def run_backtest(
     # Decision on T executes on T+1; apply the manifest's stop-loss overlay
     # in execution-timeline space, then scale to the per-position cap.
     shifted = weights.shift(1).fillna(0.0)
-    stopped = apply_stop_loss(shifted, close, bars.low, manifest.risk.stop_loss_pct)
+    stopped = apply_stop_loss(
+        shifted,
+        close,
+        bars.low,
+        manifest.risk.stop_loss_pct,
+        manifest.risk.stop_loss_cooldown_sessions,
+    )
     target = (stopped * manifest.risk.max_position_pct / 100.0).astype(np.float64)
 
     pf = vbt.Portfolio.from_orders(
@@ -159,6 +191,11 @@ def run_backtest(
     returns = pf.returns()
     wf_sharpe, wf_sortino, fold_sharpes = _walk_forward(returns, folds)
     max_dd_pct = float(abs(pf.max_drawdown()) * 100.0)
+    oos_check = (
+        check_out_of_sample(returns, oos_fraction, oos_reject_threshold)
+        if oos_fraction > 0.0
+        else None
+    )
 
     orders = pf.orders.records_readable
     total_traded = float((orders["Size"].abs() * orders["Price"]).sum())
@@ -199,15 +236,19 @@ def run_backtest(
             source_feed=snapshot.source_feed,
             period=DatePeriod(start=start, end=end),
         ),
-        passed_thresholds=thresholds.passed(
-            sharpe=metrics.sharpe,
-            sortino=metrics.sortino,
-            max_drawdown_pct=metrics.max_drawdown_pct,
+        passed_thresholds=(
+            thresholds.passed(
+                sharpe=metrics.sharpe,
+                sortino=metrics.sortino,
+                max_drawdown_pct=metrics.max_drawdown_pct,
+            )
+            and (oos_check.passed if oos_check is not None else True)
         ),
         notes=(
             f"{folds} walk-forward folds; fold Sharpes "
             f"{[round(s, 3) for s in fold_sharpes]}; fees {FEE_PCT * 1e4:.0f} bps, "
             f"slippage {SLIPPAGE_BPS:.0f} bps; decisions execute next session."
+            + (_oos_note(oos_check, oos_fraction, oos_reject_threshold) if oos_check is not None else "")
         ),
         generated_at=dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )

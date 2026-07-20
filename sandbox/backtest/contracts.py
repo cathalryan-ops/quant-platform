@@ -38,6 +38,7 @@ class SignalSpec(StrictModel):
 class RiskSpec(StrictModel):
     max_position_pct: float = Field(gt=0, le=100)
     stop_loss_pct: float = Field(gt=0)
+    stop_loss_cooldown_sessions: int = Field(default=0, ge=0)
 
 
 class Scorecard(StrictModel):
