@@ -12,6 +12,10 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   raising the displacement threshold 1.5x→2.0x ATR; `retired` (Sharpe
   0.813, close on Sortino but still failed the gate — see Lifecycle
   history for the stop-loss-gap finding it points to next).
+- [[mean-reversion-spy-qqq]] — structurally distinct from `ms_shift`: buys
+  an outsized single-day drop, holds a fixed 5-session horizon; `retired`
+  (Sharpe 0.023 — no gate near-miss, and the mechanism-level test found no
+  real reversion effect at all).
 
 ## Concepts
 
