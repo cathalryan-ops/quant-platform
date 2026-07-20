@@ -157,3 +157,57 @@ obviously catch, since they were large and fast, not noisy.
   conditional, weak in choppy bear-market/whipsaw regimes and strong in
   clean post-shock recoveries" as the working hypothesis to test next, not
   as an established result.
+
+## Follow-up: 12-fold re-run result (real data, run by the operator)
+
+The follow-up task filed above proposed re-running the same walk-forward
+backtest at `folds=12` to test whether weak/negative Sharpes cluster inside
+the 2022 rate-hike bear market. The operator ran it against the real,
+cached Alpaca snapshot. Result (overall walk-forward Sharpe 0.657, close to
+the original 0.674 — the mean signal is stable across fold counts):
+
+| fold | dates | sharpe |
+|---|---|---|
+| 0 | 2016-01-04 – 2016-09-30 | -0.087 |
+| 1 | 2016-10-03 – 2017-07-03 | 0.471 |
+| 2 | 2017-07-05 – 2018-04-04 | 0.818 |
+| 3 | 2018-04-05 – 2019-01-03 | 0.536 |
+| 4 | 2019-01-04 – 2019-10-03 | 0.096 |
+| 5 | 2019-10-04 – 2020-07-06 | **2.086** |
+| 6 | 2020-07-07 – 2021-04-06 | **1.292** |
+| 7 | 2021-04-07 – 2022-01-03 | 0.378 |
+| 8 | 2022-01-04 – 2022-10-03 | **0.0** |
+| 9 | 2022-10-04 – 2023-07-05 | 0.613 |
+| 10 | 2023-07-06 – 2024-04-03 | **1.7** |
+| 11 | 2024-04-04 – 2024-12-31 | -0.022 |
+
+**The "2022 whipsaw" hypothesis is falsified by this test, per its own
+stated falsification criterion.** Fold 8 covers almost the entire 2022
+bear market — including the Jul-Aug rally previously blamed for a whipsaw
+entry — and comes back exactly flat (0.0), not negative. Fold 9, covering
+the Oct-Nov 2022 rally and the March 2023 SVB stress, comes back positive
+(0.613). No fold spanning the original 5-fold "fold 4" window (~2021-05 to
+2023-03) is negative at 12-fold resolution. The single -0.32 result at
+5-fold resolution does not reproduce when that same stretch is split
+finer — the simplest reading is that it was an artifact of where that
+particular 5-way split's boundaries fell (a variance/autocorrelation
+interaction within that specific window), not a real, reproducible
+2022-specific effect.
+
+**Revised working characterization:** three folds stand out clearly above
+the rest — 2019-10→2020-07 (2.086, COVID crash + V-recovery), 2020-07→
+2021-04 (1.292, continued recovery), and 2023-07→2024-04 (1.7, AI/mega-cap
+rally). Every other fold sits in a mediocre 0.0–0.82 band, with the two
+weakest (2016 open, -0.087; 2024 close, -0.022) barely negative. This
+looks less like "avoids bad regimes, struggles in chop/bear markets" and
+more like **a few genuinely strong post-shock continuation windows carry
+almost the entire edge, while the rest of the time performance is close to
+noise.** That's a real pattern worth naming precisely, but a less
+favorable one than the original hypothesis: it doesn't describe a
+strategy with a durable, regime-conditional edge so much as one that
+occasionally catches a big, clean move and is roughly flat otherwise.
+
+This does not change the retirement decision (both fold counts give an
+overall Sharpe well below the 1.0 promotion threshold) — it refines *why*
+the edge is weak, which is the more useful takeaway for the next research
+iteration than the retirement decision itself.
