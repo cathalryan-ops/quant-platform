@@ -83,9 +83,9 @@ windows) or improve, while the 3 strong folds (2019-10→2020-07,
   "hypothesis": "Raising the displacement threshold from 1.5x to 2.0x 14-day ATR (v1's only other parameters unchanged) filters out low-conviction structure breaks and raises walk-forward Sharpe versus v1's 0.674 (12-fold); killed if Sharpe does not clear 0.85 or if trade count collapses to a statistically meaningless handful of trades over 2016-2024.",
   "signal_spec": { "language": "python", "entrypoint": "strategies/ms_shift_spy_high_displacement.py:Signal" },
   "risk": { "max_position_pct": 5.0, "stop_loss_pct": 2.0 },
-  "lifecycle": "research",
+  "lifecycle": "retired",
   "scorecard": {
-    "sharpe_wf": null, "sortino_wf": null, "max_drawdown_bt": null,
+    "sharpe_wf": 0.813341, "sortino_wf": 1.199802, "max_drawdown_bt": 1.179691,
     "sharpe_paper": null, "max_drawdown_paper": null, "pnl_live": null,
     "rank": null
   }
@@ -94,25 +94,25 @@ windows) or improve, while the 3 strong folds (2019-10→2020-07,
 
 ## Evidence
 
-Not yet backtested — this is the next command to run in the operator's
-environment (real Alpaca data required, same as v1):
+Real walk-forward backtest (2016-01-01 to 2024-12-31, `folds=12`, real
+SPY+QQQ Alpaca data, run by the operator): Sharpe 0.813341, Sortino
+1.199802, max drawdown 1.179691%, turnover 0.185723 (about half of v1's
+0.367). Same reproducibility caveat as v1: `data/` is gitignored, this
+result is manually recorded, not reproducible from this repo alone.
 
-```sh
-cd sandbox/backtest
-uv run python -c "
-import json, re
-from pathlib import Path
-page = Path('../../brain/wiki/strategies/ms-shift-spy-high-displacement.md').read_text()
-manifest = json.loads(re.search(r'\`\`\`strategy_manifest\n(.*?)\`\`\`', page, re.S).group(1))
-manifest['lifecycle'] = 'backtest'
-Path('/tmp/ms_shift_v2_manifest.json').write_text(json.dumps(manifest, indent=2))
-"
-uv run backtest --manifest /tmp/ms_shift_v2_manifest.json --start 2016-01-01 --end 2024-12-31 --folds 12
-```
-
-Same reproducibility caveat as v1 applies: `data/` is gitignored, so this
-result will need to be manually recorded in this page once run, the same
-way [[ms-shift-spy]]'s retirement was.
+Per-fold Sharpes (chronological, same 12-fold boundaries as v1's
+follow-up — see [[ms-shift-spy]]): [-0.066, 1.171, 1.425, 0.0, 0.0,
+1.797, 0.982, 0.0, 0.0, 1.444, 1.721, 1.287]. Four folds (indices 3, 4,
+7, 8 — the same windows that were v1's mediocre-but-positive folds:
+0.536, 0.096, 0.378, 0.0) went to exactly 0.0, meaning the stricter
+filter stopped trading in them entirely rather than trading them
+better. Where it did still trade, results are mixed relative to v1:
+folds 1, 2, 9, 11 improved meaningfully (fold 11 flipped from -0.022 to
+1.287), but folds 5 and 6 — two of v1's three standout folds (COVID
+crash+recovery and the following 2020-21 recovery) — got slightly
+*worse* (2.086→1.797, 1.292→0.982). The filter's value is concentrated
+in avoiding/neutralizing mediocre periods, not in improving the best
+ones.
 
 ## Lifecycle history
 
@@ -120,3 +120,32 @@ way [[ms-shift-spy]]'s retirement was.
   follow-up to [[ms-shift-spy]]'s (v1) retirement postmortem; parameter
   choice calibrated against synthetic firing-frequency checks (see
   Calibration section above) rather than picked arbitrarily.
+- 2026-07-20 — retired — Real backtest confirms the hypothesis
+  *directionally* (Sharpe 0.657→0.813, turnover halved) but still fails
+  `contracts/promotion_thresholds.toml`'s `[backtest_to_paper]` gate:
+  Sharpe 0.813341 vs min 1.0 (missed by 0.186659 — the binding
+  constraint), Sortino 1.199802 vs min 1.2 (missed by 0.000198 —
+  essentially a tie, but Sharpe alone still fails the gate). Max
+  drawdown 1.179691% is well within the 15% cap. Retired per the same
+  manual-record rationale as v1 (`data/` gitignored, not reproducible
+  from this repo). **Explicit caution against continuing to hand-tune
+  `displacement_mult` on this same fixed 2016-2024 window:** this is
+  now the second iteration on one parameter against one fixed historical
+  sample, and "getting closer each try" is exactly the pattern that
+  produces overfit, non-generalizing results if pursued further by
+  parameter search alone — the Sortino near-miss should not be read as
+  "one more nudge will clear it." A structurally different lever is a
+  better next step than a third tuning pass on the same knob: see
+  [[ms-shift-spy]]'s engine gap — `risk.stop_loss_pct` (declared 2.0% in
+  both v1 and v2's manifests) is validated for shape but never actually
+  enforced in the backtest simulation (`vbt.Portfolio.from_orders()` is
+  called with no `sl_stop`/`sl_trail` parameter). Positions currently
+  ride purely on the signal flipping back to flat, with no independent
+  stop-loss exit — meaning failed-breakout trades (plausibly the source
+  of the mediocre-fold drag identified in v1's postmortem) can run
+  further than the manifest's own declared risk tolerance before
+  exiting. Implementing a real stop-loss is a genuinely different
+  mechanism from entry filtering, targets the specific failure mode
+  already identified, and is testable on the same historical data
+  without repeating the overfitting risk of re-tuning the same
+  displacement knob a third time.
