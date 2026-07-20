@@ -24,3 +24,6 @@ brain/.obsidian/cache/
 
 # Node (infra/telegram, infra/paperclip)
 node_modules/
+
+# Generated dashboard snapshot (reflects live repo state, not source)
+infra/dashboard/status.html
