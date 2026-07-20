@@ -15,7 +15,8 @@ class Signal:
         self.fast = fast
         self.slow = slow
 
-    def generate(self, close: pd.DataFrame) -> pd.DataFrame:
+    def generate(self, bars) -> pd.DataFrame:
+        close = bars.close
         fast = close.rolling(self.fast).mean()
         slow = close.rolling(self.slow).mean()
         return (fast > slow).astype(float)

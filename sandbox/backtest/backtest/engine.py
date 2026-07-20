@@ -26,7 +26,7 @@ from contracts import (
     StrategyManifest,
 )
 
-from .data import Snapshot, close_matrix, default_snapshot_path, load_snapshot
+from .data import Snapshot, bar_frame, close_matrix, default_snapshot_path, load_snapshot
 from .signal import generate_checked, load_signal
 from .thresholds import BacktestThresholds
 
@@ -125,12 +125,13 @@ def run_backtest(
         expected_hash=expected_hash,
         fetch=fetch,
     )
-    close = close_matrix(snapshot, list(manifest.universe))
+    bars = bar_frame(snapshot, list(manifest.universe))
+    close = bars.close
 
     signal = load_signal(
         manifest.signal_spec.entrypoint, root=Path(__file__).resolve().parents[1]
     )
-    weights = generate_checked(signal, close)
+    weights = generate_checked(signal, bars)
 
     # Decision on T executes on T+1; scale to the manifest's per-position cap.
     target = (weights.shift(1).fillna(0.0) * manifest.risk.max_position_pct / 100.0).astype(

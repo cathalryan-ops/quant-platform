@@ -11,7 +11,7 @@ import pytest
 import contracts
 from backtest.data import SnapshotHashMismatch, content_hash, write_snapshot
 from backtest.engine import Guardrails, ManifestRejected, run_backtest, validate_manifest
-from backtest.signal import LookaheadError, generate_checked
+from backtest.signal import BarFrame, LookaheadError, generate_checked
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -104,16 +104,18 @@ def test_tampered_snapshot_aborts(manifest, snapshot_path, tmp_path):
 
 def test_lookahead_signal_is_caught(snapshot_path):
     class CheatingSignal:
-        def generate(self, close: pd.DataFrame) -> pd.DataFrame:
+        def generate(self, bars) -> pd.DataFrame:
             # Buys today whenever TOMORROW's close is higher — the classic leak.
+            close = bars.close
             return (close.shift(-1) > close).astype(float)
 
     idx = pd.bdate_range("2022-01-03", periods=200)
     close = pd.DataFrame(
         {"SPY": np.linspace(100, 130, 200) + np.sin(np.arange(200))}, index=idx
     )
+    bars = BarFrame(open=close, high=close, low=close, close=close)
     with pytest.raises(LookaheadError):
-        generate_checked(CheatingSignal(), close)
+        generate_checked(CheatingSignal(), bars)
 
 
 def test_polymarket_and_guardrail_cap_rejected(manifest):

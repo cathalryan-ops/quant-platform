@@ -108,3 +108,21 @@ def close_matrix(snapshot: Snapshot, universe: list[str]) -> pd.DataFrame:
     wide = bars.pivot(index="date", columns="symbol", values="close")[universe]
     wide.index = pd.to_datetime(wide.index)
     return wide.sort_index().dropna(how="any")
+
+
+def bar_frame(snapshot: Snapshot, universe: list[str]):
+    """Aligned wide OHLC matrices for the period. Rows are the dates on which
+    every symbol has a close (same alignment as close_matrix); open/high/low
+    are reindexed to that grid so all four matrices share one index."""
+    from .signal import BarFrame
+
+    close = close_matrix(snapshot, universe)
+    bars = snapshot.bars
+    bars = bars[(bars["date"] >= snapshot.start) & (bars["date"] <= snapshot.end)]
+
+    def wide(field: str) -> pd.DataFrame:
+        w = bars.pivot(index="date", columns="symbol", values=field)[universe]
+        w.index = pd.to_datetime(w.index)
+        return w.sort_index().reindex(close.index)
+
+    return BarFrame(open=wide("open"), high=wide("high"), low=wide("low"), close=close)
