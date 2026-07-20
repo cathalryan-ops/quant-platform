@@ -6,7 +6,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 ## Strategies
 
 - [[ms-shift-spy]] — ms_shift on SPY/QQQ; displacement-filtered
-  structure breaks; `research`.
+  structure breaks; `retired` (failed backtest→paper gate, real 2016-2024
+  data; see Lifecycle history for the fold-regime follow-up).
+- [[ms-shift-spy-high-displacement]] — v2, single-variable follow-up
+  raising the displacement threshold 1.5x→2.0x ATR; `research`, not yet
+  backtested.
 
 ## Concepts
 
