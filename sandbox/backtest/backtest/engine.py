@@ -4,7 +4,11 @@ Deterministic by construction: same manifest + same pinned snapshot =>
 byte-identical metrics (generated_at is the only field allowed to differ
 between runs). Decision on day T is executed on day T+1 (weights shifted);
 the lookahead guard in signal.py additionally proves the signal itself
-doesn't peek."""
+doesn't peek. The manifest's risk.stop_loss_pct is enforced here as a
+portfolio-level overlay (see risk.py) applied on top of the signal's raw
+weights — deliberately kept out of Signal.generate() so the ADR-0002
+Python<->Rust golden-test parity (which pins the raw signal decision) is
+unaffected by risk-control changes."""
 
 from __future__ import annotations
 
@@ -27,6 +31,7 @@ from contracts import (
 )
 
 from .data import Snapshot, bar_frame, close_matrix, default_snapshot_path, load_snapshot
+from .risk import apply_stop_loss
 from .signal import generate_checked, load_signal
 from .thresholds import BacktestThresholds
 
@@ -133,10 +138,11 @@ def run_backtest(
     )
     weights = generate_checked(signal, bars)
 
-    # Decision on T executes on T+1; scale to the manifest's per-position cap.
-    target = (weights.shift(1).fillna(0.0) * manifest.risk.max_position_pct / 100.0).astype(
-        np.float64
-    )
+    # Decision on T executes on T+1; apply the manifest's stop-loss overlay
+    # in execution-timeline space, then scale to the per-position cap.
+    shifted = weights.shift(1).fillna(0.0)
+    stopped = apply_stop_loss(shifted, close, bars.low, manifest.risk.stop_loss_pct)
+    target = (stopped * manifest.risk.max_position_pct / 100.0).astype(np.float64)
 
     pf = vbt.Portfolio.from_orders(
         close,
