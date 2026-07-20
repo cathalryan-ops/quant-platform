@@ -26,8 +26,13 @@ QP={root}
 # Research orchestrator: daily, NYSE open minus 90 minutes ({pre_open} UTC)
 {pre_open_min} {pre_open_hour} * * 1-5 $QP/infra/cron/run_agent.sh research-orchestrator echo "TODO: claude -p agents/research-orchestrator.md"
 
-# Ranker + postmortem analyst: NYSE close plus 60 minutes ({post_close} UTC)
+# Ranker: NYSE close plus 60 minutes ({post_close} UTC)
 {post_close_min} {post_close_hour} * * 1-5 $QP/infra/cron/run_agent.sh ranker bash -c 'cd $QP/sandbox/backtest && uv run ranker'
+
+# Postmortem analyst: same heartbeat as ranker (NYSE close plus 60 minutes,
+# {post_close} UTC). No headless Claude Code invocation is wired up yet —
+# this is a manual/TODO stub, not a working command. See docs/AUTOMATION.md.
+{post_close_min} {post_close_hour} * * 1-5 $QP/infra/cron/run_agent.sh postmortem-analyst echo "TODO: claude -p agents/postmortem-analyst.md"
 
 # Vault hygiene: /lint + /digest nightly 03:00 UTC
 0 3 * * * $QP/infra/cron/run_agent.sh vault-ops echo "TODO: claude -p /lint then /digest"
