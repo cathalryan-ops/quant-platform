@@ -328,9 +328,18 @@ async fn stop_loss_forces_flat_mid_session_in_the_live_engine() {
     let cfg = config(&root);
     let mut broker = Broker::Sim { slippage_bps: 0.0 };
 
+    // A generous cooldown isolates this test's original point — the
+    // fresh-raw-transition re-arm property (A) — from Option C's
+    // price-reclaim re-arm (B), which has its own dedicated coverage in
+    // engine-core's unit tests. Session 4's close (103) already reclaims
+    // this scenario's entry_price (101), so with the default cooldown of 0
+    // it would legitimately re-arm one session early via (B).
+    let mut stop_loss_manifest = manifest();
+    stop_loss_manifest.risk.stop_loss_cooldown_sessions = 3;
+
     run(
         &cfg,
-        &manifest(),
+        &stop_loss_manifest,
         &stop_loss_test_ruleset(),
         &checks.guardrails,
         &mut broker,
@@ -446,5 +455,58 @@ async fn stop_loss_state_survives_a_real_live_engine_restart() {
         "restart after a stop-out must reach the exact same state as an uninterrupted run \
          — if 'stopped, awaiting re-arm' didn't survive the restart, session 4 would have \
          wrongly re-entered and the two runs would diverge"
+    );
+}
+
+#[tokio::test]
+async fn run_writes_a_heartbeat_marker() {
+    let root = temp_root("heartbeat");
+    seed_approval(&root, true);
+    let checks = check(&root, "sma-cross-test-v1", Mode::Sim, false).unwrap();
+    let cfg = config(&root);
+    let mut broker = Broker::Sim { slippage_bps: 3.0 };
+    let mut feed = AnyFeed::Sim(SimFeed::new(vec!["SPY".into(), "QQQ".into()], 3, 42));
+
+    run(
+        &cfg,
+        &manifest(),
+        &ruleset(),
+        &checks.guardrails,
+        &mut broker,
+        &mut feed,
+    )
+    .await
+    .unwrap();
+
+    let heartbeat = std::fs::read_to_string(root.join("live/heartbeat.json"))
+        .expect("heartbeat.json must exist after run()");
+    assert!(
+        heartbeat.contains("last_alive_at"),
+        "heartbeat file must record a timestamp: {heartbeat}"
+    );
+}
+
+#[tokio::test]
+async fn sim_broker_restart_does_not_wipe_open_positions() {
+    // Regression test for the reconcile() bug: Broker::Sim has no
+    // independent ledger (see broker::tracks_positions), so its
+    // positions() always reports empty. Before the fix, reconcile()
+    // unconditionally adopted whatever the broker reported — meaning any
+    // restart while genuinely holding a position silently wiped it from
+    // the local Journal, the platform's sole source of truth for Sim runs.
+    let mut state = engine_core::engine::PortfolioState::new(100_000.0);
+    state.positions.insert("SPY".into(), 42.0);
+    let before = state.positions.clone();
+
+    let root = temp_root("sim-reconcile-regression");
+    let broker = Broker::Sim { slippage_bps: 0.0 };
+    live::session::reconcile(&mut state, &broker, &root)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        state.positions, before,
+        "Sim-broker reconcile must never adopt its empty ledger — \
+         the local Journal is the sole source of truth for Sim runs"
     );
 }

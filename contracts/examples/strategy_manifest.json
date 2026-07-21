@@ -12,7 +12,8 @@
   },
   "risk": {
     "max_position_pct": 5.0,
-    "stop_loss_pct": 2.0
+    "stop_loss_pct": 2.0,
+    "stop_loss_cooldown_sessions": 0
   },
   "lifecycle": "research",
   "scorecard": {

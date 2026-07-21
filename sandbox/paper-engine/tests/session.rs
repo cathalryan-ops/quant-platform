@@ -226,9 +226,17 @@ fn stop_loss_config(root: &Path) -> SessionConfig {
 async fn stop_loss_forces_flat_mid_session_despite_raw_signal_staying_long() {
     let root = temp_root("stoploss-e2e");
     let cfg = stop_loss_config(&root);
+    // A generous cooldown isolates this test's point — the fresh-raw-
+    // transition re-arm property (A) — from Option C's price-reclaim re-arm
+    // (B), covered separately in engine-core's unit tests. Session 4's
+    // close (103) already reclaims this scenario's entry_price (101), so
+    // with the default cooldown of 0 it would legitimately re-arm one
+    // session early via (B).
+    let mut stop_loss_manifest = manifest();
+    stop_loss_manifest.risk.stop_loss_cooldown_sessions = 3;
     run(
         &cfg,
-        &manifest(),
+        &stop_loss_manifest,
         &stop_loss_test_ruleset(),
         &mut stop_loss_script(),
     )

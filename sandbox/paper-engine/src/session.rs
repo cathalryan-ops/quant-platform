@@ -143,6 +143,7 @@ fn process_session(
             bar.close,
             bar.low,
             manifest.risk.stop_loss_pct,
+            manifest.risk.stop_loss_cooldown_sessions,
         )?;
         let target_value = weight * ruleset.max_position_pct / 100.0 * equity;
         let held_qty = state.positions.get(&bar.symbol).copied().unwrap_or(0.0);

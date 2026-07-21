@@ -34,8 +34,19 @@ class Bridge:
 
     def _guard(self, update: Update) -> bool:
         user = update.effective_user
+        log.info(
+            "update %s from user id=%s username=%s",
+            update.update_id,
+            user.id if user else None,
+            user.username if user else None,
+        )
         if user is None or not core.is_owner(user.id):
-            log.warning("dropped update from non-owner id %s", user.id if user else None)
+            log.warning(
+                "dropped update %s from non-owner id %s (expected %s)",
+                update.update_id,
+                user.id if user else None,
+                core.owner_id(),
+            )
             return False
         return True
 
@@ -117,9 +128,41 @@ def _load_env(repo_root: Path) -> None:
     try:
         from dotenv import load_dotenv
     except ImportError:
+        log.warning("python-dotenv not installed; .env will not be loaded automatically")
         return
-    if (repo_root / ".env").is_file():
-        load_dotenv(repo_root / ".env", override=False)
+    env_path = repo_root / ".env"
+    if not env_path.is_file():
+        log.warning("no .env found at %s; relying on process environment only", env_path)
+        return
+    pre_existing = "TELEGRAM_OWNER_ID" in os.environ
+    load_dotenv(env_path, override=False)
+    if pre_existing:
+        # override=False means .env can NEVER win this — a stray shell/devcontainer
+        # export silently shadows any edit made to .env until that process env var
+        # itself is unset. This is the most common cause of "I changed .env but
+        # nothing changed."
+        log.warning(
+            "TELEGRAM_OWNER_ID was already set in the process environment "
+            "(value=%s) BEFORE .env was loaded — the .env file's value, if "
+            "different, is being IGNORED. Unset it in the shell/devcontainer "
+            "env or restart the process in a clean environment.",
+            os.environ.get("TELEGRAM_OWNER_ID"),
+        )
+    else:
+        log.info("TELEGRAM_OWNER_ID loaded from %s", env_path)
+
+
+async def _clear_stray_webhook(ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    info = await ctx.bot.get_webhook_info()
+    if info.url:
+        log.warning(
+            "a webhook was registered (%s) — this starves run_polling of updates "
+            "entirely and silently. Deleting it now.",
+            info.url,
+        )
+        await ctx.bot.delete_webhook(drop_pending_updates=False)
+    else:
+        log.info("no webhook registered; polling is safe to start")
 
 
 def main() -> None:
@@ -137,6 +180,7 @@ def main() -> None:
     app.job_queue.run_repeating(bridge.pump_queue, interval=QUEUE_POLL_SECONDS, first=5)
     app.job_queue.run_repeating(bridge.flush_digest, interval=DIGEST_FLUSH_SECONDS, first=60)
     log.info("bridge up; owner id %s; repo root %s", core.owner_id(), repo_root)
+    app.job_queue.run_once(_clear_stray_webhook, when=0)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

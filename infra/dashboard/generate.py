@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import math
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -327,6 +328,104 @@ def collect_queue(repo_root: Path) -> dict[str, Any]:
     return {"events": events, "by_severity": by_severity}
 
 
+def collect_positions(repo_root: Path, strategies: list[dict[str, Any]]) -> dict[str, Any]:
+    """Real per-strategy position/PnL state, sourced from Journal files.
+
+    Journals are the only place this platform records actual positions,
+    entry prices, and per-session prices (`data/live/<id>/live_journal.jsonl`
+    for the live engine, `data/results/<id>/paper_journal.jsonl` for the
+    paper engine — see live/src/main.rs and sandbox/paper-engine/src/main.rs
+    for these path conventions). `paper_result.json`/`backtest_result.json`
+    only carry aggregate metrics (Sharpe, Sortino, PnL total), not per-symbol
+    position/entry/stop state, so they are not a substitute here.
+
+    Absent journals — true for every strategy in this repo today, since
+    nothing has been promoted past backtest — simply produce no entries.
+    That is the correct, expected output, not a fallback to paper over.
+
+    Returns {strategy_id: {"source": "live"|"paper", "cash": float,
+    "tickers": {symbol: {"qty", "entry_price", "stop_level", "last_close"}},
+    "pnl_series": {symbol: [unrealized PnL per session held]}}}.
+    """
+    result: dict[str, Any] = {}
+    for entry in strategies:
+        manifest = entry.get("manifest")
+        if not manifest:
+            continue
+        strategy_id = manifest.get("id")
+        stop_loss_pct = (manifest.get("risk") or {}).get("stop_loss_pct")
+        if not strategy_id:
+            continue
+
+        for journal_path, source in (
+            (repo_root / "data" / "live" / strategy_id / "live_journal.jsonl", "live"),
+            (repo_root / "data" / "results" / strategy_id / "paper_journal.jsonl", "paper"),
+        ):
+            if not journal_path.is_file():
+                continue
+            snapshots = [
+                snap
+                for snap in (_read_json_str(line) for line in journal_path.read_text(encoding="utf-8").splitlines() if line.strip())
+                if isinstance(snap, dict)
+            ]
+            if not snapshots:
+                continue
+
+            latest = snapshots[-1]
+            positions = latest.get("positions") or {}
+            bars = latest.get("bars") or {}
+            stop_loss_state = latest.get("stop_loss") or {}
+
+            tickers: dict[str, Any] = {}
+            for symbol, qty in positions.items():
+                if not qty:
+                    continue
+                window = bars.get(symbol) or []
+                last_close = window[-1].get("close") if window else None
+                entry_price = (stop_loss_state.get(symbol) or {}).get("entry_price")
+                stop_level = (
+                    entry_price * (1.0 - stop_loss_pct / 100.0)
+                    if entry_price and stop_loss_pct
+                    else None
+                )
+                tickers[symbol] = {
+                    "qty": qty,
+                    "entry_price": entry_price,
+                    "stop_level": stop_level,
+                    "last_close": last_close,
+                }
+
+            # Per-symbol unrealized PnL, one point per session the symbol
+            # was actually held — replays every snapshot, not just the
+            # latest, since that's the only place a time series exists.
+            pnl_series: dict[str, list[float]] = {}
+            for snap in snapshots:
+                snap_positions = snap.get("positions") or {}
+                snap_bars = snap.get("bars") or {}
+                snap_stop = snap.get("stop_loss") or {}
+                for symbol, qty in snap_positions.items():
+                    if not qty:
+                        continue
+                    window = snap_bars.get(symbol) or []
+                    if not window:
+                        continue
+                    close = window[-1].get("close")
+                    entry_price = (snap_stop.get(symbol) or {}).get("entry_price")
+                    if close is None or not entry_price:
+                        continue
+                    pnl_series.setdefault(symbol, []).append(qty * (close - entry_price))
+
+            result[strategy_id] = {
+                "source": source,
+                "cash": latest.get("cash"),
+                "tickers": tickers,
+                "pnl_series": pnl_series,
+            }
+            break  # live takes priority over paper if somehow both exist
+
+    return result
+
+
 def collect_postmortems(repo_root: Path) -> list[dict[str, str]]:
     postmortems_dir = repo_root / "brain" / "wiki" / "postmortems"
     results: list[dict[str, str]] = []
@@ -598,6 +697,147 @@ def _render_promotions(promotions: dict[str, list[dict[str, Any]]]) -> str:
     return pending_html + rejected_html
 
 
+_CHART_COLORS = ["#5b8cff", "#35c76a", "#ffb84d", "#ff5c5c", "#8b93a7", "#c792ea", "#5ccfe6"]
+
+
+def _render_positions(positions: dict[str, Any]) -> str:
+    """Top-level portfolio metrics: valuation card, per-ticker cards, a
+    weights donut, and per-position PnL step-lines — all from real
+    Journal-sourced data (see collect_positions). Empty state (no journal
+    anywhere yet) is the expected, correct output today, not an error."""
+    if not positions:
+        return (
+            '<p class="empty">No active positions &mdash; no strategy has a '
+            "live or paper Journal yet (nothing has been promoted past "
+            "backtest). This section populates automatically once one does.</p>"
+        )
+
+    total_valuation = 0.0
+    donut_slices: list[tuple[str, float]] = []
+    ticker_rows: list[str] = []
+    pnl_by_symbol: dict[str, list[float]] = {}
+
+    for strategy_id, info in sorted(positions.items()):
+        strat_value = info.get("cash") or 0.0
+        for symbol, t in sorted(info["tickers"].items()):
+            last_close = t.get("last_close")
+            value = t["qty"] * last_close if last_close is not None else 0.0
+            strat_value += value
+            donut_slices.append((f"{strategy_id}/{symbol}", value))
+            ticker_rows.append(
+                "<tr>"
+                f"<td>{_esc(strategy_id)}</td>"
+                f"<td>{_esc(symbol)}</td>"
+                f"<td>{_fmt_num(t['qty'])}</td>"
+                f"<td>{_fmt_num(t.get('entry_price'))}</td>"
+                f"<td>{_fmt_num(t.get('stop_level'))}</td>"
+                f"<td>{_fmt_num(last_close)}</td>"
+                f'<td><span class="muted">{_esc(info["source"])}</span></td>'
+                "</tr>"
+            )
+        total_valuation += strat_value
+        for symbol, series in info.get("pnl_series", {}).items():
+            if series:
+                pnl_by_symbol.setdefault(f"{strategy_id}/{symbol}", []).extend(series)
+
+    valuation_card = (
+        '<div class="metric-card">'
+        '<div class="metric-label">Portfolio valuation</div>'
+        f'<div class="metric-value">${total_valuation:,.2f}</div>'
+        "</div>"
+    )
+
+    if ticker_rows:
+        table = (
+            '<table class="data-table">'
+            "<thead><tr><th>strategy</th><th>ticker</th><th>position</th>"
+            "<th>entry price</th><th>stop level</th><th>last close</th><th>source</th>"
+            "</tr></thead><tbody>" + "".join(ticker_rows) + "</tbody></table>"
+        )
+    else:
+        table = '<p class="empty">No open positions in the latest snapshot.</p>'
+
+    charts = (
+        '<div class="chart-row">'
+        + _render_donut(donut_slices)
+        + _render_pnl_steplines(pnl_by_symbol)
+        + "</div>"
+    )
+
+    return valuation_card + table + charts
+
+
+def _render_donut(slices: list[tuple[str, float]]) -> str:
+    positive = [(label, value) for label, value in slices if value > 0]
+    total = sum(value for _, value in positive)
+    if total <= 0:
+        return '<div class="chart-block"><h3>Portfolio weights</h3><p class="empty">Nothing to weight yet.</p></div>'
+
+    radius = 15.915  # circumference is ~100, so stroke-dasharray lengths equal percentages
+    circumference = 2 * math.pi * radius
+    cx = cy = 21
+    offset = 0.0
+    arcs: list[str] = []
+    legend: list[str] = []
+    for i, (label, value) in enumerate(positive):
+        pct = value / total
+        length = pct * circumference
+        color = _CHART_COLORS[i % len(_CHART_COLORS)]
+        arcs.append(
+            f'<circle cx="{cx}" cy="{cy}" r="{radius}" fill="transparent" '
+            f'stroke="{color}" stroke-width="6" '
+            f'stroke-dasharray="{length:.3f} {circumference - length:.3f}" '
+            f'stroke-dashoffset="{-offset:.3f}" />'
+        )
+        legend.append(
+            f'<li><span class="swatch" style="background:{color}"></span>'
+            f"{_esc(label)}: {pct:.1%}</li>"
+        )
+        offset += length
+
+    svg = (
+        f'<svg viewBox="0 0 42 42" class="donut-svg" role="img" aria-label="Portfolio weights">'
+        + "".join(arcs)
+        + "</svg>"
+    )
+    return (
+        '<div class="chart-block"><h3>Portfolio weights</h3>'
+        f'{svg}<ul class="donut-legend">{"".join(legend)}</ul></div>'
+    )
+
+
+def _render_pnl_steplines(pnl_by_symbol: dict[str, list[float]]) -> str:
+    if not pnl_by_symbol:
+        return '<div class="chart-block"><h3>Position PnL</h3><p class="empty">No PnL history yet.</p></div>'
+
+    blocks = [
+        _render_one_stepline(label, series, _CHART_COLORS[i % len(_CHART_COLORS)])
+        for i, (label, series) in enumerate(sorted(pnl_by_symbol.items()))
+    ]
+    return '<div class="chart-block"><h3>Position PnL (unrealized, per session held)</h3>' + "".join(blocks) + "</div>"
+
+
+def _render_one_stepline(label: str, series: list[float], color: str) -> str:
+    w, h = 240, 56
+    lo, hi = min(series), max(series)
+    span = (hi - lo) or 1.0
+    step_x = w / max(len(series) - 1, 1)
+    points = [(i * step_x, h - ((v - lo) / span) * h) for i, v in enumerate(series)]
+
+    path_parts = [f"M {points[0][0]:.2f} {points[0][1]:.2f}"]
+    for (_, y0), (x1, y1) in zip(points, points[1:]):
+        # step interpolation: hold the previous value until the next x, then jump
+        path_parts.append(f"L {x1:.2f} {y0:.2f} L {x1:.2f} {y1:.2f}")
+    path = " ".join(path_parts)
+
+    return (
+        f'<div class="stepline-block"><div class="stepline-label">{_esc(label)}: '
+        f'<strong>{series[-1]:+.2f}</strong></div>'
+        f'<svg viewBox="0 0 {w} {h}" class="stepline-svg" preserveAspectRatio="none">'
+        f'<path d="{path}" fill="none" stroke="{color}" stroke-width="2" /></svg></div>'
+    )
+
+
 def _render_queue(queue: dict[str, Any]) -> str:
     events = queue["events"]
     if not events:
@@ -790,6 +1030,43 @@ footer {
   border-top: 1px solid var(--panel-border);
   padding-top: 14px;
 }
+.metric-card {
+  display: inline-block;
+  background: rgba(91,140,255,0.08);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  margin-bottom: 14px;
+}
+.metric-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.metric-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.chart-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 14px;
+}
+.chart-block h3 {
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.donut-svg { width: 120px; height: 120px; transform: rotate(-90deg); }
+.donut-legend { list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.8rem; }
+.donut-legend li { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.stepline-block { margin-bottom: 10px; }
+.stepline-label { font-size: 0.8rem; margin-bottom: 3px; }
+.stepline-svg { width: 240px; height: 56px; display: block; }
 """
 
 
@@ -804,6 +1081,7 @@ def render(repo_root: Path) -> str:
     kill_freeze = collect_kill_freeze(repo_root)
     strategies = collect_strategies(repo_root)
     raw_notes = collect_raw_notes(repo_root)
+    positions = collect_positions(repo_root, strategies)
     promotions = collect_promotions(repo_root)
     queue = collect_queue(repo_root)
     postmortems = collect_postmortems(repo_root)
@@ -822,6 +1100,11 @@ def render(repo_root: Path) -> str:
   <section id="kill-freeze">
     <h2>Kill / Freeze state</h2>
     {_render_kill_freeze(kill_freeze)}
+  </section>
+
+  <section id="positions">
+    <h2>Positions &amp; PnL</h2>
+    {_render_positions(positions)}
   </section>
 
   <section id="strategies">

@@ -52,6 +52,29 @@ fn emit_event(repo_root: &Path, severity: &str, kind: &str, text: String, requir
     }
 }
 
+const HEARTBEAT_INTERVAL_SECS: u64 = 60;
+
+fn heartbeat_path(repo_root: &Path) -> PathBuf {
+    repo_root.join("live/heartbeat.json")
+}
+
+/// Write "the process is alive" — independent of whether a new session was
+/// actually processed. The real feed is a daily-bar WebSocket stream (see
+/// `AlpacaFeed::next_session`): on a healthy connection, `next_session()`
+/// can legitimately block for many hours between trading days, so "time
+/// since last session processed" cannot distinguish a genuine stall (dead
+/// connection, deadlock) from normal idle time. This is the signal
+/// infra/health_check.py's 5-minute staleness check is meant to read.
+fn write_heartbeat(repo_root: &Path) {
+    let ts = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    if std::fs::create_dir_all(repo_root.join("live")).is_ok() {
+        let _ = std::fs::write(
+            heartbeat_path(repo_root),
+            serde_json::json!({"last_alive_at": ts}).to_string(),
+        );
+    }
+}
+
 /// Client order ids already submitted (crash-safe dedupe, one id per line).
 fn submitted_ids(path: &Path) -> std::collections::BTreeSet<String> {
     std::fs::read_to_string(path)
@@ -73,26 +96,33 @@ fn record_submission(path: &Path, id: &str) -> Result<(), String> {
     f.sync_all().map_err(|e| e.to_string())
 }
 
-/// Startup reconciliation: the broker's ledger is the truth for positions.
+/// Startup reconciliation: the broker's ledger is the truth for positions
+/// — for brokers that actually maintain one. `Broker::Sim` has no
+/// independent ledger at all (see `Broker::tracks_positions`), so for Sim
+/// the local `Journal` remains authoritative and this is a no-op; adopting
+/// Sim's always-empty `positions()` here would silently wipe real local
+/// state on every Sim-broker restart.
 pub async fn reconcile(
     state: &mut PortfolioState,
     broker: &Broker,
     repo_root: &Path,
 ) -> Result<(), String> {
-    let broker_positions = broker.positions().await?;
-    if broker_positions != state.positions {
-        tracing::warn!(?broker_positions, local = ?state.positions, "reconciliation divergence — adopting broker ledger");
-        emit_event(
-            repo_root,
-            "warning",
-            "reconciliation",
-            format!(
-                "local {:?} vs broker {:?}; adopted broker",
-                state.positions, broker_positions
-            ),
-            false,
-        );
-        state.positions = broker_positions;
+    if broker.tracks_positions() {
+        let broker_positions = broker.positions().await?;
+        if broker_positions != state.positions {
+            tracing::warn!(?broker_positions, local = ?state.positions, "reconciliation divergence — adopting broker ledger");
+            emit_event(
+                repo_root,
+                "warning",
+                "reconciliation",
+                format!(
+                    "local {:?} vs broker {:?}; adopted broker",
+                    state.positions, broker_positions
+                ),
+                false,
+            );
+            state.positions = broker_positions;
+        }
     }
     let cancelled = broker.cancel_open_orders().await?;
     if cancelled > 0 {
@@ -119,6 +149,18 @@ pub async fn run(
         .map_err(|e| format!("journal: {e}"))?
         .unwrap_or_else(|| PortfolioState::new(guardrails.capital.base_capital_usd));
     reconcile(&mut state, broker, &cfg.repo_root).await?;
+
+    // Background heartbeat, independent of the session loop's own cadence
+    // (see write_heartbeat) — detached; dropped along with the runtime when
+    // `run()` returns (in tests) or the process exits (in production).
+    write_heartbeat(&cfg.repo_root);
+    let heartbeat_root = cfg.repo_root.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(HEARTBEAT_INTERVAL_SECS)).await;
+            write_heartbeat(&heartbeat_root);
+        }
+    });
 
     let window = ruleset.history_window();
     let max_loss_usd =
@@ -173,6 +215,7 @@ pub async fn run(
                 bar.close,
                 bar.low,
                 manifest.risk.stop_loss_pct,
+                manifest.risk.stop_loss_cooldown_sessions,
             )?;
             weights.insert(bar.symbol.clone(), weight);
         }

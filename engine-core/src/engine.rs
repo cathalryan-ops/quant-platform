@@ -123,12 +123,14 @@ impl PortfolioState {
         close: f64,
         low: f64,
         stop_loss_pct: f64,
+        cooldown_sessions: u32,
     ) -> Result<f64, String> {
         self.stop_loss.entry(symbol.to_string()).or_default().apply(
             raw_weight,
             close,
             low,
             stop_loss_pct,
+            cooldown_sessions,
         )
     }
 }
@@ -151,14 +153,21 @@ pub struct StopLossState {
     /// overlay (independent of whether the raw signal still says long).
     in_position: bool,
     /// True once stopped out; forces flat regardless of the raw signal until
-    /// a fresh 0 -> >0 transition of the RAW signal re-arms the stop.
+    /// re-armed (see `apply`'s Re-arm section).
     stopped: bool,
     /// Entry fill price recorded on the day this symbol's raw weight last
-    /// transitioned from 0 to >0 while not stopped.
+    /// transitioned from 0 to >0 while not stopped. Retained (not reset)
+    /// after a stop so a later price-reclaim re-arm has something to compare
+    /// against.
     entry_price: f64,
     /// Previous session's raw (pre-overlay) weight; used to detect a fresh
     /// 0 -> >0 transition for entry / re-arm.
     prev_raw: f64,
+    /// Sessions remaining before a price-reclaim re-arm becomes eligible.
+    /// Set to `cooldown_sessions` on each stop-out; decremented each session
+    /// while stopped. Absent in a pre-Option-C journal => 0 via `#[serde(default)]`.
+    #[serde(default)]
+    cooldown_remaining: u32,
 }
 
 impl StopLossState {
@@ -180,22 +189,39 @@ impl StopLossState {
     ///   low has already occurred).
     /// - Trigger: once in position, if a later session's `low` breaches
     ///   `entry_price * (1 - stop_loss_pct/100)`, the position is forced
-    ///   flat from that session onward.
-    /// - Re-arm: once stopped out, stays forced flat — even if the raw
-    ///   signal is still nominally long — until the raw signal produces a
-    ///   fresh 0 -> >0 transition.
+    ///   flat from that session onward, and a `cooldown_sessions`-session
+    ///   countdown starts.
+    /// - Re-arm (Option C, combined): once stopped out, stays forced flat
+    ///   until EITHER of these fires, whichever comes first. (A) the raw
+    ///   signal produces a FRESH 0 -> >0 transition — the original safety
+    ///   property, ungated by cooldown (already rare, nothing to protect
+    ///   against here). (B) `cooldown_sessions` have elapsed since the stop
+    ///   AND this session's close reclaims (>=) `entry_price` — bounds how
+    ///   long a slow-to-reverse trend-following signal can leave the
+    ///   position locked out through a recovery the raw signal itself would
+    ///   have ridden. `cooldown_sessions=0` means (B) is live starting the
+    ///   very next session.
     pub fn apply(
         &mut self,
         raw_weight: f64,
         close: f64,
         low: f64,
         stop_loss_pct: f64,
+        cooldown_sessions: u32,
     ) -> Result<f64, String> {
         if stop_loss_pct <= 0.0 {
             return Err(format!("stop_loss_pct must be > 0, got {stop_loss_pct}"));
         }
-        if self.prev_raw == 0.0 && raw_weight > 0.0 {
-            self.stopped = false; // fresh entry re-arms the stop
+
+        if self.stopped {
+            if self.cooldown_remaining > 0 {
+                self.cooldown_remaining -= 1;
+            }
+            let fresh_entry = self.prev_raw == 0.0 && raw_weight > 0.0;
+            let price_reclaimed = self.cooldown_remaining == 0 && close >= self.entry_price;
+            if fresh_entry || price_reclaimed {
+                self.stopped = false; // (A) or (B) — whichever fired first
+            }
         }
 
         let result = if raw_weight > 0.0 && !self.stopped {
@@ -206,6 +232,7 @@ impl StopLossState {
             } else if low <= self.entry_price * (1.0 - stop_loss_pct / 100.0) {
                 self.in_position = false;
                 self.stopped = true;
+                self.cooldown_remaining = cooldown_sessions;
                 0.0
             } else {
                 raw_weight
@@ -459,12 +486,22 @@ mod tests {
     /// `StopLossState`, session by session, exactly as the engines call it
     /// once per symbol per session. Returns the resulting weight sequence.
     fn run_stop_loss(weights: &[f64], close: &[f64], low: &[f64], stop_loss_pct: f64) -> Vec<f64> {
+        run_stop_loss_cooldown(weights, close, low, stop_loss_pct, 0)
+    }
+
+    fn run_stop_loss_cooldown(
+        weights: &[f64],
+        close: &[f64],
+        low: &[f64],
+        stop_loss_pct: f64,
+        cooldown_sessions: u32,
+    ) -> Vec<f64> {
         let mut s = StopLossState::default();
         weights
             .iter()
             .zip(close)
             .zip(low)
-            .map(|((&w, &c), &l)| s.apply(w, c, l, stop_loss_pct).unwrap())
+            .map(|((&w, &c), &l)| s.apply(w, c, l, stop_loss_pct, cooldown_sessions).unwrap())
             .collect()
     }
 
@@ -536,12 +573,12 @@ mod tests {
         for t in 0..3 {
             spy_out.push(
                 state
-                    .apply_stop_loss("SPY", weights[t], spy_close[t], spy_low[t], 2.0)
+                    .apply_stop_loss("SPY", weights[t], spy_close[t], spy_low[t], 2.0, 0)
                     .unwrap(),
             );
             qqq_out.push(
                 state
-                    .apply_stop_loss("QQQ", weights[t], qqq_close[t], qqq_low[t], 2.0)
+                    .apply_stop_loss("QQQ", weights[t], qqq_close[t], qqq_low[t], 2.0, 0)
                     .unwrap(),
             );
         }
@@ -552,8 +589,8 @@ mod tests {
     #[test]
     fn invalid_stop_loss_pct_is_rejected() {
         let mut s = StopLossState::default();
-        assert!(s.apply(1.0, 100.0, 99.0, 0.0).is_err());
-        assert!(s.apply(1.0, 100.0, 99.0, -1.0).is_err());
+        assert!(s.apply(1.0, 100.0, 99.0, 0.0, 0).is_err());
+        assert!(s.apply(1.0, 100.0, 99.0, -1.0, 0).is_err());
     }
 
     #[test]
@@ -575,21 +612,84 @@ mod tests {
         );
 
         let mut s = PortfolioState::new(100_000.0);
-        s.apply_stop_loss("SPY", 1.0, 100.0, 99.0, 2.0).unwrap(); // entry
-        s.apply_stop_loss("SPY", 1.0, 96.0, 90.0, 2.0).unwrap(); // stopped out
+        s.apply_stop_loss("SPY", 1.0, 100.0, 99.0, 2.0, 0).unwrap(); // entry
+        s.apply_stop_loss("SPY", 1.0, 96.0, 90.0, 2.0, 0).unwrap(); // stopped out
         Journal::append(&path, &s).unwrap();
         let resumed = Journal::load_last(&path).unwrap().unwrap();
         assert_eq!(resumed, s);
         // The resumed state must still refuse to re-enter without a fresh
         // 0 -> >0 transition of the raw signal (re-arm behaviour survives).
+        // close=96 < entry_price=100, so the (B) price-reclaim path doesn't
+        // fire either — genuinely still stopped, not just cooldown-gated.
         let mut resumed = resumed;
         assert_eq!(
             resumed
-                .apply_stop_loss("SPY", 1.0, 96.0, 96.0, 2.0)
+                .apply_stop_loss("SPY", 1.0, 96.0, 96.0, 2.0, 0)
                 .unwrap(),
             0.0,
-            "still stopped after restart — raw signal never dropped to 0"
+            "still stopped after restart — raw signal never dropped to 0, price never reclaimed"
         );
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn cooldown_remaining_defaults_on_pre_option_c_journal() {
+        // A journal written by the original stop-loss shipment (before
+        // Option C) has a `stop_loss` map whose per-symbol state has no
+        // `cooldown_remaining` key at all — must still load, defaulting to 0.
+        let dir = std::env::temp_dir().join(format!("qp-cooldown-journal-{}", std::process::id()));
+        let path = dir.join("journal.jsonl");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let mut legacy = serde_json::to_value(PortfolioState::new(100_000.0)).unwrap();
+        legacy["stop_loss"]["SPY"] = serde_json::json!({
+            "in_position": false,
+            "stopped": true,
+            "entry_price": 100.0,
+            "prev_raw": 1.0
+        });
+        std::fs::write(&path, format!("{legacy}\n")).unwrap();
+        let loaded = Journal::load_last(&path).unwrap().unwrap();
+        assert_eq!(loaded.stop_loss["SPY"].cooldown_remaining, 0);
+    }
+
+    // --- Option C: combined re-arm (fresh raw transition OR post-cooldown
+    // price reclaim, whichever fires first) — mirrors
+    // sandbox/backtest/tests/test_risk.py exactly. ---
+
+    #[test]
+    fn price_reclaim_rearms_even_though_raw_signal_never_drops_to_zero() {
+        let weights = [0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let close = [100.0, 100.0, 90.0, 85.0, 90.0, 101.0];
+        let low = [99.0, 99.0, 88.0, 84.0, 89.0, 100.0];
+        assert_eq!(
+            run_stop_loss_cooldown(&weights, &close, &low, 2.0, 1),
+            //                       0     1     2     3     4     5
+            vec![0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        );
+    }
+
+    #[test]
+    fn price_reclaim_is_gated_by_cooldown() {
+        let weights = [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let close = [100.0, 100.0, 90.0, 101.0, 101.0, 101.0, 101.0];
+        let low = [99.0, 99.0, 88.0, 100.0, 100.0, 100.0, 100.0];
+        assert_eq!(
+            run_stop_loss_cooldown(&weights, &close, &low, 2.0, 3),
+            //                       0     1     2     3     4     5     6
+            vec![0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0]
+        );
+    }
+
+    #[test]
+    fn fresh_transition_rearm_ignores_cooldown() {
+        let weights = [0.0, 1.0, 1.0, 0.0, 1.0];
+        let close = [100.0, 100.0, 90.0, 90.0, 90.0];
+        let low = [99.0, 99.0, 88.0, 89.0, 89.0];
+        assert_eq!(
+            run_stop_loss_cooldown(&weights, &close, &low, 2.0, 10),
+            //                       0     1     2     3     4
+            vec![0.0, 1.0, 0.0, 0.0, 1.0]
+        );
     }
 }

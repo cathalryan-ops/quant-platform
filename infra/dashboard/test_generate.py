@@ -418,6 +418,80 @@ class TestSyntheticRepo(unittest.TestCase):
         self.assertIn("&mdash;", html_out)
         self.assertNotIn("unrelated-note", html_out)
 
+    def _journal_line(
+        self, cash: float, positions: dict, closes: dict, stop_loss: dict, equity: list[float]
+    ) -> str:
+        bars = {
+            sym: [{"symbol": sym, "date": "2030-01-01", "open": c, "high": c, "low": c, "close": c, "volume": 1000.0}]
+            for sym, c in closes.items()
+        }
+        return json.dumps(
+            {
+                "cash": cash,
+                "positions": positions,
+                "bars": bars,
+                "first_date": "2030-01-01",
+                "last_date": "2030-01-01",
+                "fills": 1,
+                "equity_curve": equity,
+                "stop_loss": stop_loss,
+            }
+        )
+
+    def test_positions_empty_state_when_no_journal_exists(self) -> None:
+        # Today's actual repo state: strategies exist, but nothing has been
+        # promoted past backtest, so there is no live/ or paper journal.
+        _write(
+            self.root / "brain/wiki/strategies/alpha-strat.md",
+            _strategy_page("alpha-strat", "ms_shift", "backtest", _empty_scorecard()),
+        )
+        html_out = generate.render(self.root)
+        self.assertIn("No active positions", html_out)
+        # must not fabricate a valuation card or any position row — "metric-value"
+        # itself always appears as a CSS class definition in the stylesheet, so
+        # check for the actual rendered card markup instead.
+        self.assertNotIn('<div class="metric-card">', html_out)
+
+    def test_positions_populate_from_a_real_paper_journal_fixture(self) -> None:
+        _write(
+            self.root / "brain/wiki/strategies/ms-shift-spy-test.md",
+            _strategy_page("ms-shift-spy-test", "ms_shift", "paper", _empty_scorecard()),
+        )
+        journal_lines = [
+            self._journal_line(
+                cash=95000.0,
+                positions={"SPY": 10.0},
+                closes={"SPY": 100.0},
+                stop_loss={"SPY": {"in_position": True, "stopped": False, "entry_price": 100.0, "prev_raw": 1.0, "cooldown_remaining": 0}},
+                equity=[100000.0],
+            ),
+            self._journal_line(
+                cash=95000.0,
+                positions={"SPY": 10.0},
+                closes={"SPY": 103.0},
+                stop_loss={"SPY": {"in_position": True, "stopped": False, "entry_price": 100.0, "prev_raw": 1.0, "cooldown_remaining": 0}},
+                equity=[100000.0, 100300.0],
+            ),
+        ]
+        _write(
+            self.root / "data/results/ms-shift-spy-test/paper_journal.jsonl",
+            "\n".join(journal_lines) + "\n",
+        )
+
+        html_out = generate.render(self.root)
+
+        # Note: this manifest's risk block comes from _strategy_page's fixed
+        # test manifest, which sets stop_loss_pct=2.0 (see _strategy_page).
+        self.assertIn('<div class="metric-value">$96,030.00</div>', html_out)  # cash 95000 + 10*103
+        self.assertIn("ms-shift-spy-test", html_out)
+        self.assertIn("SPY", html_out)
+        # entry price 100.0, stop level 100*(1-0.02)=98.0, last close 103.0
+        self.assertIn("98", html_out)
+        self.assertIn("Portfolio weights", html_out)
+        self.assertIn("Position PnL", html_out)
+        # unrealized PnL at session 2: 10*(103-100) = 30.00
+        self.assertIn("+30.00", html_out)
+
     def test_zero_raw_notes_is_handled_gracefully(self) -> None:
         # No brain/raw/ directory at all — must not crash, every strategy's
         # linked-notes column falls back to the em-dash placeholder.

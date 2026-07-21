@@ -62,6 +62,11 @@ pub struct SignalSpec {
 pub struct RiskSpec {
     pub max_position_pct: f64,
     pub stop_loss_pct: f64,
+    /// Sessions after a stop-out before a price-reclaim re-arm is eligible.
+    /// A fresh raw-signal 0 -> >0 transition can still re-arm immediately
+    /// regardless of this cooldown. Absent in older manifests => 0 (no floor).
+    #[serde(default)]
+    pub stop_loss_cooldown_sessions: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

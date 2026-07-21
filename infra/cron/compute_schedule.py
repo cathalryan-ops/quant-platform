@@ -39,6 +39,13 @@ QP={root}
 
 # Telegram bridge liveness (restart if dead) every 5 minutes
 */5 * * * * pgrep -f telegram-bridge > /dev/null || (cd $QP/infra/telegram && nohup uv run telegram-bridge >> bridge.log 2>&1 &)
+
+# Health check: Alpaca connectivity + live engine heartbeat staleness, every
+# 5 minutes. Deliberately NOT routed through run_agent.sh, same as the
+# telegram-bridge-liveness line above — this is infra monitoring, not a
+# trading agent, so it must keep running (and alerting) through a KILL or
+# budget-freeze rather than being gated by them.
+*/5 * * * * cd $QP && python3 infra/health_check.py >> infra/health_check.log 2>&1
 """
 
 

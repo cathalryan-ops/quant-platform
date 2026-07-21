@@ -40,11 +40,34 @@ impl Broker {
     }
 
     /// Broker-side positions (symbol -> qty) for startup reconciliation.
-    /// The broker's ledger is the truth; local state adopts it.
+    /// The broker's ledger is the truth; local state adopts it. Only call
+    /// this when `tracks_positions()` is true — `Broker::Sim` has no
+    /// independent ledger at all (see `tracks_positions`), so this always
+    /// returns an empty map that must never be mistaken for "flat".
     pub async fn positions(&self) -> Result<BTreeMap<String, f64>, String> {
         match self {
             Broker::Sim { .. } => Ok(BTreeMap::new()),
             Broker::Alpaca(b) => b.positions().await,
+        }
+    }
+
+    /// Whether this broker maintains its own independent position ledger
+    /// that startup reconciliation should treat as authoritative.
+    ///
+    /// `Broker::Sim` fills orders locally with no persistent account state
+    /// of its own (see `submit` — it's a stateless per-order price
+    /// calculation) — it never had a ledger to diverge from in the first
+    /// place. Treating its always-empty `positions()` as authoritative was
+    /// a bug: on every Sim-broker restart, reconcile() would silently wipe
+    /// real accumulated local `Journal` state to nothing. For Sim, the
+    /// local Journal already IS the single source of truth; reconciliation
+    /// against Sim is a no-op by construction. `Broker::Alpaca` genuinely
+    /// can diverge (manual intervention, missed fills across a crash) and
+    /// remains authoritative as before.
+    pub fn tracks_positions(&self) -> bool {
+        match self {
+            Broker::Sim { .. } => false,
+            Broker::Alpaca(_) => true,
         }
     }
 
