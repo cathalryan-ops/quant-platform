@@ -133,3 +133,10 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 
 - [[ms-shift-spy-example]] — worked-example paper review for
   ms-shift-spy-v1 (P9 template demonstration).
+- [[research-campaign-2026-07-21]] — cross-strategy synthesis across all
+  12 backtest-only strategies retired to date: all failed the 1.0/1.2
+  gate; the two best, structurally unrelated mechanisms both land at
+  0.813; every filter tried on tsmom-spy-qqq made it worse (3x); flags
+  the threshold for human review via Telegram and proposes blending
+  tsmom-spy-qqq with ms-shift-spy-high-displacement as the next untested
+  lever.
