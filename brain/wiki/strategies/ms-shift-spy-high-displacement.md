@@ -85,12 +85,23 @@ windows) or improve, while the 3 strong folds (2019-10→2020-07,
   "risk": { "max_position_pct": 5.0, "stop_loss_pct": 2.0 },
   "lifecycle": "retired",
   "scorecard": {
-    "sharpe_wf": 0.813341, "sortino_wf": 1.199802, "max_drawdown_bt": 1.179691,
+    "sharpe_wf": 0.759373, "sortino_wf": 1.124019, "max_drawdown_bt": 1.044311,
     "sharpe_paper": null, "max_drawdown_paper": null, "pnl_live": null,
     "rank": null
   }
 }
 ```
+
+**Scorecard correction (2026-07-21):** the values above are the true
+current-engine numbers (stop-loss enforcement + Option C cooldown, both
+active), re-run fresh as part of
+[[tsmom-ms-shift-blend]]'s apples-to-apples comparison
+(`scripts/tsmom_ms_shift_blend_backtest.py`). The previously-recorded
+0.813341 / 1.199802 / 1.179691 predates stop-loss enforcement existing as
+an engine feature at all (see Lifecycle history below) — the Option C
+investigation found the corrected ~0.76 number in prose but never
+propagated it into this machine-readable block, which is what the sandbox
+actually reads. See the corrected Lifecycle history entry.
 
 ## Evidence
 
@@ -164,3 +175,14 @@ ones.
   `passed_thresholds` is still `false` with Option C (Sharpe ~0.76,
   still below the 1.0 minimum, the same binding constraint as before).
   This page stays `retired`.
+- 2026-07-21 — scorecard corrected — the manifest scorecard above still
+  showed the pre-enforcement numbers (0.813341 / 1.199802 / 1.179691) one
+  day after the prose directly above already established the enforced
+  number was ~0.76; it was never propagated into the machine-readable
+  block the sandbox actually reads. Corrected to the exact re-run values
+  (Sharpe 0.759373, Sortino 1.124019, max drawdown 1.044311%, turnover
+  0.275822) while re-running this signal standalone for
+  [[tsmom-ms-shift-blend]]'s apples-to-apples comparison — same manifest
+  risk block (`stop_loss_cooldown_sessions: 10`), same 2016-2024 SPY/QQQ
+  data, same engine. No change in verdict (`retired`, still below the
+  1.0 Sharpe gate) — a data-hygiene correction, not a new finding.

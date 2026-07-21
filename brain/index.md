@@ -86,6 +86,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   ~0.7% drawdown improvement, the same shape as the earlier vol-gate
   line — now three structurally different gate types have all made this
   signal worse, closing the gating axis for now).
+- [[tsmom-ms-shift-blend]] — equal-weight blend of tsmom-spy-qqq and
+  ms-shift-spy-high-displacement, first strategy to combine two edges
+  instead of gating one; `retired` but the **best result in this
+  vault**: Sharpe 0.884 and Sortino 1.297 (clears the 1.2 gate outright),
+  beating both legs on every metric, driven by a confirmed moderate
+  (0.5522) correlation between the two legs — still short of the 1.0
+  Sharpe gate, flagged to the human as evidence the threshold itself may
+  be worth revisiting.
 
 ## Concepts
 
@@ -128,6 +136,10 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   pick which basket member to hold; the first cross-sectional gate in
   this vault (vs. volatility-acceleration/-targeting's self-referential
   gates on the traded asset's own price series).
+- [[signal-blending]] — average two structurally independent signals'
+  position weights instead of gating one with the other; a gate can only
+  ever remove exposure, a blend can add a second, differently-timed
+  source of edge — the lever every prior gate in this vault lacked.
 
 ## Postmortems
 

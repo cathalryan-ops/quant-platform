@@ -17,7 +17,10 @@ test, per the source: (1) daily-chart shifts are meaningfully rarer and
 cleaner than lower-timeframe ones, and (2) shifts accompanied by
 [[displacement]] precede multi-day continuation — i.e., they are swing
 signals, not precise entries. The claimed mechanism is forced exits by
-traders anchored to the old trend fueling the move.
+traders anchored to the old trend fueling the move. Day-scale event-driven
+and structurally unrelated to [[time-series-momentum]]'s month-scale
+trailing return — the pairing [[tsmom-ms-shift-blend]] tests via
+[[signal-blending]].
 
 ## Evidence & sources
 

@@ -33,7 +33,10 @@ skip-month convention matters here: without it, the two effects would
 partially cancel inside a single lookback window. [[dual-momentum]] uses
 this same absolute test as a floor on top of [[cross-sectional-momentum]]'s
 relative rank, so a basket-relative signal can go to cash instead of
-always owning whichever candidate is least bad.
+always owning whichever candidate is least bad. [[signal-blending]] takes
+a different approach entirely: instead of gating this signal, it averages
+its position weight with [[market-structure-shift]]'s structurally
+unrelated day-scale signal, testing diversification rather than filtering.
 
 ## Evidence & sources
 
