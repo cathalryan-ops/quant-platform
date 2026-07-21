@@ -51,6 +51,12 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   weight), but still short of the ungated baseline because raw vol level
   scales down good high-vol folds along with bad ones; closes the
   vol-overlay branch of the momentum line with a clean, complete finding).
+- [[turn-of-month-spy-qqq]] — first calendar-only hypothesis, no price
+  data at all: long the last trading day of the month through the first
+  three of the next; `retired` (Sharpe 0.022, a clean null — the
+  falsification test failed outright, in-window returns mildly *lower*
+  than out-of-window on both symbols, no trace of the effect in this
+  sample).
 
 ## Concepts
 
@@ -71,6 +77,9 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 - [[volatility-targeting]] — continuous, threshold-free position scaling
   inversely with realized vol; no gate to chatter across, but doesn't
   distinguish "good" (rally) vol from "bad" (crash) vol.
+- [[turn-of-month-effect]] — returns cluster around month boundaries
+  (institutional-flow-driven, not information-driven); the first
+  calendar-only, price-independent mechanism tested in this vault.
 
 ## Postmortems
 
