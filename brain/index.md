@@ -21,6 +21,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   `retired` (Sharpe 0.120, worse than v1's ungated baseline — the gate
   preserved the strong folds but turned previously-positive folds
   negative).
+- [[tsmom-spy-qqq]] — structurally orthogonal to the whole `ms_shift`/
+  mean-reversion line: 12-1 time-series momentum, no day-scale event, held
+  for as long as the trailing 12-month trend stays positive; `retired`
+  (Sharpe 0.813 misses the gate by the same margin as v2, but Sortino
+  clears 1.2 and OOS improves on in-sample with zero fit parameters — a
+  clean near-miss, not a fitted one — though the pre-registered
+  falsification test also triggers: fully invested through the 2020
+  COVID crash).
 
 ## Concepts
 
@@ -32,6 +40,9 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   rare event a trend-persistent signal uses to reverse can lock a position
   out of the exact recovery that would have vindicated it; the "Option C"
   fix and its OOS validation on ms-shift-spy-v1/v2.
+- [[time-series-momentum]] — an asset's own trailing return predicts its
+  near-term drift; absolute (not cross-sectional), month-scale, and blind
+  to shocks inside its own lookback window.
 
 ## Postmortems
 
