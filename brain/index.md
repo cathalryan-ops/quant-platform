@@ -43,6 +43,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   protection preserved and improved, but the magnitude wasn't enough to
   close the gap to the ungated baseline; axis closed, flagged next step
   is continuous vol-targeting sizing instead of a binary gate).
+- [[tsmom-vol-target]] — structurally different follow-up to the whole
+  vol-gate line: replaces the binary gate with continuous vol-targeted
+  sizing (`min(1.0, 0.15/realized_vol)`); `retired` (Sharpe 0.742 —
+  turnover problem fully solved (0.496, essentially the ungated
+  baseline's 0.465) and COVID exposure genuinely scaled down (~39% avg
+  weight), but still short of the ungated baseline because raw vol level
+  scales down good high-vol folds along with bad ones; closes the
+  vol-overlay branch of the momentum line with a clean, complete finding).
 
 ## Concepts
 
@@ -60,6 +68,9 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 - [[volatility-acceleration]] — short-window realized vol vs. its own
   longer-window baseline; a fast, relative, self-referential regime-change
   detector, distinct from a static absolute vol band.
+- [[volatility-targeting]] — continuous, threshold-free position scaling
+  inversely with realized vol; no gate to chatter across, but doesn't
+  distinguish "good" (rally) vol from "bad" (crash) vol.
 
 ## Postmortems
 
