@@ -29,6 +29,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   clean near-miss, not a fitted one — though the pre-registered
   falsification test also triggers: fully invested through the 2020
   COVID crash).
+- [[tsmom-vol-accel]] — single-variable follow-up to tsmom-spy-qqq: gates
+  the unchanged signal off when 5-day realized vol expands past 1.75x its
+  63-day baseline, aimed at tsmom's COVID-crash blind spot; `retired`
+  (Sharpe 0.534, worse than the ungated baseline — the gate genuinely
+  raised COVID-window flat time from 0% to ~47% as designed, but more
+  than doubled turnover, and the added whipsaw cost outweighs the
+  crash-window benefit).
 
 ## Concepts
 
@@ -43,6 +50,9 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 - [[time-series-momentum]] — an asset's own trailing return predicts its
   near-term drift; absolute (not cross-sectional), month-scale, and blind
   to shocks inside its own lookback window.
+- [[volatility-acceleration]] — short-window realized vol vs. its own
+  longer-window baseline; a fast, relative, self-referential regime-change
+  detector, distinct from a static absolute vol band.
 
 ## Postmortems
 
