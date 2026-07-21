@@ -64,6 +64,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   with tsmom means this is a related but not fully independent bet, and
   it nets out worse with more than double the turnover, suggesting the
   max-ratio construction chatters near its threshold more).
+- [[sector-rotation]] — first cross-sectional strategy in this vault:
+  ranks the 10 SPDR sector ETFs against each other monthly, holds the
+  top 3; `retired` (Sharpe 0.255, a clear miss, highest drawdown and
+  second-highest turnover recorded here — genuinely rotates (32 distinct
+  3-sector combinations) but XLK dominates 69.1% of selections, so this
+  mostly found tech's 2016-2024 dominance rather than validating
+  cross-sectional momentum broadly).
 
 ## Concepts
 
@@ -91,6 +98,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   52-week high predicts continuation via anchoring bias, a different
   causal claim (and different arithmetic — ratio to a rolling max, not a
   trailing return) than [[time-series-momentum]].
+- [[cross-sectional-momentum]] — rank a basket against EACH OTHER's
+  trailing return and rotate into the relative leaders, as opposed to
+  time-series-momentum's absolute (judge-against-own-history)
+  construction; the first mechanism in this vault needing a basket, not
+  a single asset.
 
 ## Postmortems
 
