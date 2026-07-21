@@ -25,5 +25,8 @@ brain/.obsidian/cache/
 # Node (infra/telegram, infra/paperclip)
 node_modules/
 
+# pm2 runtime logs (infra/telegram/ecosystem.config.js)
+infra/telegram/logs/
+
 # Generated dashboard snapshot (reflects live repo state, not source)
 infra/dashboard/status.html
