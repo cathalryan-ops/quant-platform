@@ -30,7 +30,10 @@ different horizon, different (opposite) sign, different proposed cause
 (underreaction/trend-following-crowd-driven drift at the month scale
 rather than day-scale overreaction-and-snapback) — but it's the reason the
 skip-month convention matters here: without it, the two effects would
-partially cancel inside a single lookback window.
+partially cancel inside a single lookback window. [[dual-momentum]] uses
+this same absolute test as a floor on top of [[cross-sectional-momentum]]'s
+relative rank, so a basket-relative signal can go to cash instead of
+always owning whichever candidate is least bad.
 
 ## Evidence & sources
 

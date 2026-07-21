@@ -71,6 +71,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   3-sector combinations) but XLK dominates 69.1% of selections, so this
   mostly found tech's 2016-2024 dominance rather than validating
   cross-sectional momentum broadly).
+- [[dual-momentum-equity-bond-gold]] — second cross-sectional strategy,
+  first spanning multiple asset classes: ranks SPY/TLT/GLD monthly,
+  holds the leader only if its own momentum is positive, else cash;
+  `retired` (Sharpe 0.101, worse than both concepts it composes —
+  drawdown genuinely improved (1.401%, among the lowest recorded) and
+  the cash floor genuinely binds (21.3% of rebalances) — mechanism
+  verified real, just not profitable on this three-asset basket).
 
 ## Concepts
 
@@ -103,6 +110,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   time-series-momentum's absolute (judge-against-own-history)
   construction; the first mechanism in this vault needing a basket, not
   a single asset.
+- [[dual-momentum]] — composes time-series-momentum's absolute floor
+  with cross-sectional-momentum's relative rank: hold the basket's
+  leader only if it also clears its own trend test, else cash; the
+  mechanism that lets a basket-relative signal go flat instead of always
+  owning whichever candidate is least bad.
 
 ## Postmortems
 

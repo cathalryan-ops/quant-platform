@@ -25,7 +25,10 @@ correlated large-cap index ETFs don't provide a basket to rank against.
 This concept only became testable once [[volatility-targeting]]'s
 retirement prompted expanding the pinned universe to 16 symbols including
 10 SPDR sector ETFs (see `sandbox/backtest/DATA.md`) — [[sector-rotation]]
-is the first strategy built on it.
+is the first strategy built on it. [[dual-momentum]] composes this
+relative rank with time-series momentum's absolute floor, letting the
+basket-relative signal go flat instead of always holding "the least bad"
+candidate.
 
 ## Evidence & sources
 
