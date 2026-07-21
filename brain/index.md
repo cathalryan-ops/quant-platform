@@ -57,6 +57,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   falsification test failed outright, in-window returns mildly *lower*
   than out-of-window on both symbols, no trace of the effect in this
   sample).
+- [[52wk-high-spy-qqq]] — structurally different construction from
+  tsmom: price-to-rolling-max ratio (anchoring-bias mechanism, George &
+  Hwang 2004) rather than a trailing return; `retired` (Sharpe 0.625,
+  meaningfully below tsmom-spy-qqq's 0.813 — ~80% raw-signal agreement
+  with tsmom means this is a related but not fully independent bet, and
+  it nets out worse with more than double the turnover, suggesting the
+  max-ratio construction chatters near its threshold more).
 
 ## Concepts
 
@@ -80,6 +87,10 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
 - [[turn-of-month-effect]] — returns cluster around month boundaries
   (institutional-flow-driven, not information-driven); the first
   calendar-only, price-independent mechanism tested in this vault.
+- [[fifty-two-week-high-effect]] — price proximity to its own trailing
+  52-week high predicts continuation via anchoring bias, a different
+  causal claim (and different arithmetic — ratio to a rolling max, not a
+  trailing return) than [[time-series-momentum]].
 
 ## Postmortems
 
