@@ -36,6 +36,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   raised COVID-window flat time from 0% to ~47% as designed, but more
   than doubled turnover, and the added whipsaw cost outweighs the
   crash-window benefit).
+- [[tsmom-vol-accel-hysteresis]] — single-variable follow-up to
+  tsmom-vol-accel: adds a lower re-entry threshold (1.25 vs the unchanged
+  1.75 exit) to cut gate chatter; `retired` (Sharpe 0.608 — every
+  prediction came true in direction, turnover down 13.4%, COVID
+  protection preserved and improved, but the magnitude wasn't enough to
+  close the gap to the ungated baseline; axis closed, flagged next step
+  is continuous vol-targeting sizing instead of a binary gate).
 
 ## Concepts
 
