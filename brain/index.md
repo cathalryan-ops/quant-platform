@@ -16,6 +16,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   an outsized single-day drop, holds a fixed 5-session horizon; `retired`
   (Sharpe 0.023 — no gate near-miss, and the mechanism-level test found no
   real reversion effect at all).
+- [[ms-shift-spy-vol-regime]] — v1's unchanged signal gated to a trailing
+  volatility band [12%, 35%] instead of v2's displacement-magnitude axis;
+  `retired` (Sharpe 0.120, worse than v1's ungated baseline — the gate
+  preserved the strong folds but turned previously-positive folds
+  negative).
 
 ## Concepts
 
