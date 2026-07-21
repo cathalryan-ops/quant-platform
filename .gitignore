@@ -28,5 +28,8 @@ node_modules/
 # pm2 runtime logs (infra/telegram/ecosystem.config.js)
 infra/telegram/logs/
 
+# Delivered-event archive (infra/telegram/telegram_bridge/core.py:mark_sent)
+infra/telegram/queue/sent/
+
 # Generated dashboard snapshot (reflects live repo state, not source)
 infra/dashboard/status.html
