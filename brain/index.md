@@ -78,6 +78,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   drawdown genuinely improved (1.401%, among the lowest recorded) and
   the cash floor genuinely binds (21.3% of rebalances) — mechanism
   verified real, just not profitable on this three-asset basket).
+- [[tsmom-breadth-gate]] — third follow-up gate on tsmom-spy-qqq, first
+  cross-sectional (not self-referential) gate: closes when <50% of the
+  10 sectors are themselves trending up; `retired` (Sharpe 0.559 vs.
+  the 0.813 ungated baseline — gate genuinely binds (78/125 sessions
+  beyond the base signal's own flat days) but turnover +61% swamps a
+  ~0.7% drawdown improvement, the same shape as the earlier vol-gate
+  line — now three structurally different gate types have all made this
+  signal worse, closing the gating axis for now).
 
 ## Concepts
 
@@ -115,6 +123,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   leader only if it also clears its own trend test, else cash; the
   mechanism that lets a basket-relative signal go flat instead of always
   owning whichever candidate is least bad.
+- [[market-breadth]] — fraction of a basket independently confirming a
+  trend, used to gate a decision on a DIFFERENT asset rather than to
+  pick which basket member to hold; the first cross-sectional gate in
+  this vault (vs. volatility-acceleration/-targeting's self-referential
+  gates on the traded asset's own price series).
 
 ## Postmortems
 

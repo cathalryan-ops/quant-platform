@@ -25,7 +25,9 @@ inside its own (multi-month) lookback window — [[tsmom-spy-qqq]] was
 fully invested through the entire 2020 COVID crash because nothing in a
 12-month trailing return can react within days. A fast-reacting vol-ratio
 gate is a structurally different, much shorter-horizon signal layered on
-top, aimed squarely at that blind spot.
+top, aimed squarely at that blind spot. Also self-referential in a way
+[[market-breadth]] isn't: this gate only ever looks at the traded asset's
+own price series, never at other assets.
 
 ## Evidence & sources
 
