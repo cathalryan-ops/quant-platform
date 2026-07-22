@@ -10,6 +10,7 @@ dependencies = [
     "pyarrow>=25.0.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
+    "statsmodels>=0.14.6",
     "vectorbt>=1.1.0",
 ]
 

@@ -176,6 +176,7 @@ def run_backtest(
         bars.low,
         manifest.risk.stop_loss_pct,
         manifest.risk.stop_loss_cooldown_sessions,
+        high=bars.high,
     )
     target = (stopped * manifest.risk.max_position_pct / 100.0).astype(np.float64)
 

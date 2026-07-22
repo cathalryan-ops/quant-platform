@@ -126,3 +126,72 @@ def test_cooldown_zero_default_matches_original_next_session_reentry_behavior():
     low = frame([99.0, 99.0, 97.0, 99.0, 99.0, 95.0, 95.5])
     out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0)
     assert out["SPY"].tolist() == [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+# --- 2026-07-22: short-side support (needed for pairs-trading/stat-arb,
+# the first long-short strategy in this vault) — see risk.py module
+# docstring. `high` defaults to None, so every test above (none of which
+# pass it) continues to exercise the original long-only-with-shorts-zeroed
+# behavior unchanged. ---
+
+
+def test_negative_weight_without_high_falls_through_to_flat_unchanged():
+    # No `high` supplied (the default) -- a short-side weight must still be
+    # forced flat exactly like before 2026-07-22, not silently traded.
+    weights = frame([0.0, -1.0, -1.0])
+    close = frame([100.0, 100.0, 100.0])
+    low = frame([99.0, 99.0, 99.0])
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0)
+    assert out["SPY"].tolist() == [0.0, 0.0, 0.0]
+
+
+def test_short_position_passes_through_when_not_stopped():
+    weights = frame([0.0, -1.0, -1.0, -1.0])
+    close = frame([100.0, 100.0, 99.0, 98.0])
+    low = frame([99.0, 99.0, 98.0, 97.0])
+    high = frame([101.0, 100.5, 100.0, 99.0])  # never breaches a 2% stop (>=102)
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0, high=high)
+    assert out["SPY"].tolist() == [0.0, -1.0, -1.0, -1.0]
+
+
+def test_short_stop_triggers_on_high_breach_and_forces_flat():
+    # Entry at day 1 (close=100), short stop at 100*(1+0.02)=102.
+    # Day 2's high (103) breaches it.
+    weights = frame([0.0, -1.0, -1.0, -1.0, -1.0])
+    close = frame([99.0, 100.0, 104.0, 105.0, 106.0])
+    low = frame([98.0, 99.5, 100.0, 104.0, 105.0])
+    high = frame([100.0, 100.5, 103.0, 106.0, 107.0])
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0, high=high)
+    assert out["SPY"].tolist() == [0.0, -1.0, 0.0, 0.0, 0.0]
+
+
+def test_short_entry_day_itself_is_never_stopped_out():
+    weights = frame([0.0, -1.0, 0.0])
+    close = frame([100.0, 100.0, 100.0])
+    high = frame([100.0, 150.0, 100.0])  # entry day's own high is deeply above entry
+    low = frame([100.0, 100.0, 100.0])
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0, high=high)
+    assert out["SPY"].tolist() == [0.0, -1.0, 0.0]
+
+
+def test_short_price_reclaim_rearms_after_cooldown():
+    # Stopped out day 2 (high breach); cooldown=1, and close reclaims
+    # (drops back to/below) entry_price=100 on day 4.
+    weights = frame([0.0, -1.0, -1.0, -1.0, -1.0])
+    close = frame([100.0, 100.0, 103.0, 103.0, 100.0])
+    low = frame([99.0, 99.0, 102.0, 102.0, 99.0])
+    high = frame([100.0, 100.5, 103.0, 103.0, 100.5])
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0, cooldown_sessions=1, high=high)
+    # index:                0     1      2    3     4
+    assert out["SPY"].tolist() == [0.0, -1.0, 0.0, 0.0, -1.0]
+
+
+def test_long_and_short_are_independent_directions_on_the_same_symbol():
+    # A direct sign flip (long -> short) without passing through 0 is
+    # treated as a fresh entry in the new direction, not a stop.
+    weights = frame([0.0, 1.0, -1.0, -1.0])
+    close = frame([100.0, 100.0, 100.0, 100.0])
+    low = frame([99.0, 99.0, 99.0, 99.0])
+    high = frame([101.0, 101.0, 101.0, 101.0])
+    out = apply_stop_loss(weights, close, low, stop_loss_pct=2.0, high=high)
+    assert out["SPY"].tolist() == [0.0, 1.0, -1.0, -1.0]
