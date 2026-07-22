@@ -163,6 +163,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   compensates for. Refines the correlation-over-strength finding from
   [[blend-leg-search-2026-07-22]]: correlation is necessary but not
   sufficient — comparable leg strength matters too).
+- [[low-vol-anomaly-stocks50]] — first strategy in this vault on a
+  mechanism outside momentum/structure-break/mean-reversion/calendar:
+  ranks the 50-stock universe by trailing realized volatility, holds the
+  15 least volatile; `retired` (Sharpe 0.518773 — best cross-sectional
+  result here so far, but the falsification check found the anomaly
+  inverted on this sample: the low-vol basket's raw Sharpe, 0.5386, is
+  below an equal-weight buy-and-hold benchmark's, 0.6608; see
+  [[low-vol-anomaly-2026-07-22]]).
 - [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
   integration-test scaffold that drives the full loop end-to-end; not a
   real edge and excluded from cross-strategy synthesis. `research`
@@ -213,6 +221,12 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   position weights instead of gating one with the other; a gate can only
   ever remove exposure, a blend can add a second, differently-timed
   source of edge — the lever every prior gate in this vault lacked.
+- [[low-volatility-anomaly]] — rank a basket by trailing realized
+  volatility and hold the LEAST volatile subset, the opposite ranking
+  direction from cross-sectional-momentum; a capital-constraint
+  mispricing story (Betting Against Beta), not underreaction or a
+  mechanical event — the first non-momentum, non-structure-break
+  mechanism tested in this vault.
 
 ## Postmortems
 
