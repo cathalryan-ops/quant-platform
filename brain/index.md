@@ -271,3 +271,13 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   (degrading, not improving) OOS split. Universe size was not the
   limiting factor; the mechanism itself is. Argues against further
   universe-scaling investment on this mechanism.
+- [[low-vol-anomaly-2026-07-22]] — first test of a mechanism outside
+  momentum/structure-break/mean-reversion/calendar: low-vol-anomaly-
+  stocks50 (Sharpe 0.518773) is the best cross-sectional result in this
+  vault so far, but its own falsification check inverts the hypothesis —
+  the low-vol-15 basket's raw Sharpe (0.5386) is below an equal-weight
+  buy-and-hold benchmark of the same 50-stock universe (0.6608); vol
+  fell 14.0% but return fell 31.5%, worse than a tautology. Composition
+  (persistent defensive-sector cluster) rules out an implementation
+  bug. Does not close the broader "new mechanism class" lever — only
+  this one mechanism, on this sample.
