@@ -111,6 +111,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   a small contracts/engine patch to enable `market: "crypto"` (schema +
   per-market 365-day annualization in engine.py/oos.py).
 
+- [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
+  integration-test scaffold that drives the full loop end-to-end; not a
+  real edge and excluded from cross-strategy synthesis. `research`
+  (harness demo only — never intended to be retired/promoted).
+
 ## Concepts
 
 - [[market-structure-shift]] — decisive break of the prevailing swing

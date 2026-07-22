@@ -1,3 +1,4 @@
+<!-- processed: 2026-07-20 -->
 # ms-shift-spy-v1 — fold-level regime hypothesis (2016-2024 walk-forward)
 
 Notes written after the repo owner's real walk-forward backtest of
