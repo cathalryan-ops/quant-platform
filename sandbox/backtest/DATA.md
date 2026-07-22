@@ -44,3 +44,34 @@ See `backtest/data.py`.
   with a shorter history silently truncates every OTHER symbol's usable
   range too — including it would have cut 2016-2018 off the whole
   snapshot, not just off XLC.
+
+## `BTCUSD_ETHUSD_2021-01-01_2024-12-31.parquet` (`data/crypto/daily/`)
+
+- **Market:** `crypto` (the first non-`us_equities` pinned data in this
+  vault; see `contracts/strategy_manifest.schema.json`'s `market` enum).
+  Symbols are stored in Alpaca's pair format with the `/` intact (`BTC/USD`,
+  `ETH/USD`) — only the filename strips it (`BTCUSD`), since `/` is a path
+  separator. `backtest/engine.py` annualizes crypto Sharpe/Sortino with
+  365 sessions/year (`SESSIONS_PER_YEAR["crypto"]`), not equities' 252 —
+  every calendar day has a bar here (24/7 spot trading, confirmed no
+  weekend/holiday gaps: exactly 1461 bars/symbol for a 4-year span).
+- **Universe (2):** BTC/USD, ETH/USD — the two most liquid USD crypto spot
+  pairs Alpaca offers, deliberately small and liquid rather than broad.
+- **Period:** 2021-01-01 to 2024-12-31 (both symbols align cleanly, 1461
+  sessions, no truncation). **Shorter than the equity snapshots' 2016-2024
+  window** — Alpaca's crypto bar history starts 2021-01-01; requesting
+  from 2016-01-01 empirically returns data only from 2021-01-01 on.
+- **Content hash:** `sha256:096c4fe845e542a6756a35c18c25903f06aadc6068464e0a68ad82a63301f355`
+- **Fetched by:** `scripts/fetch_crypto_universe.py` (re-run to refresh;
+  it no-ops if the file already exists). Same `ALPACA_API_KEY`/
+  `ALPACA_SECRET_KEY` as the equity fetch — no new credentials.
+- **Why:** 13 real walk-forward backtests across structurally distinct
+  mechanisms have converged on a Sharpe ~0.6-0.9 ceiling on the same
+  US-equity/sector daily universe (see
+  `brain/wiki/postmortems/research-campaign-2026-07-21.md` and
+  `brain/wiki/postmortems/pinned-universe-diversity-2026-07-22.md`) — a
+  pattern across unrelated mechanisms that looks like a property of the
+  data/universe, not of signal design. This pins a genuinely different
+  asset class (24/7, different vol/liquidity regime, no overnight-gap
+  structure) to test that directly, reusing already-proven mechanisms
+  (tsmom, ms-shift) rather than inventing a new one.

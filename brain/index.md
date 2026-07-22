@@ -88,12 +88,28 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   signal worse, closing the gating axis for now).
 - [[tsmom-ms-shift-blend]] — equal-weight blend of tsmom-spy-qqq and
   ms-shift-spy-high-displacement, first strategy to combine two edges
-  instead of gating one; `retired` but the **best result in this
-  vault**: Sharpe 0.884 and Sortino 1.297 (clears the 1.2 gate outright),
-  beating both legs on every metric, driven by a confirmed moderate
-  (0.5522) correlation between the two legs — still short of the 1.0
-  Sharpe gate, flagged to the human as evidence the threshold itself may
-  be worth revisiting.
+  instead of gating one; `retired`, the **best result in this vault**:
+  Sharpe 0.884 and Sortino 1.297 (clears the 1.2 gate outright), beating
+  both legs on every metric, driven by a confirmed moderate (0.5522)
+  correlation between the two legs — still short of the 1.0 Sharpe gate.
+  **2026-07-22:** the human reviewed and declined to loosen the gate to
+  rescue this result (it's written into this strategy's own kill
+  criterion); stays `retired`, no paper promotion. `contracts/
+  promotion_thresholds.toml` unchanged.
+- [[tsmom-btc-eth]] — first strategy in this vault on a market other
+  than `us_equities`: [[time-series-momentum]] reused unmodified
+  (calendar-day-adjusted lookback=365/skip=30) on BTC/USD, ETH/USD,
+  testing whether the equity-universe's Sharpe ~0.6–0.9 ceiling (13
+  strategies, see research-campaign-2026-07-21) is a data/universe
+  property rather than a mechanism-design one. `retired`: Sharpe 0.219,
+  a clear miss — the mechanism's asymmetric shock-protection pattern
+  replicated faithfully (correctly flat through the Nov-2022 FTX
+  collapse, unlike tsmom-spy-qqq's COVID result), but aggregate Sharpe
+  is well below both the gate and the equity baseline, driven by 3
+  flat folds of 8 and 65% higher turnover. Evidence against the simple
+  "different asset class unlocks a better result" hypothesis. Required
+  a small contracts/engine patch to enable `market: "crypto"` (schema +
+  per-market 365-day annualization in engine.py/oos.py).
 
 ## Concepts
 

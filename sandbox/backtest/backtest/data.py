@@ -45,6 +45,15 @@ def default_snapshot_path(data_dir: Path, universe: list[str], start: str, end: 
     return data_dir / "us_equities" / "daily" / name
 
 
+def default_crypto_snapshot_path(data_dir: Path, universe: list[str], start: str, end: str) -> Path:
+    """Mirrors default_snapshot_path for market="crypto". Filenames strip the
+    "/" from Alpaca pair symbols (e.g. BTC/USD -> BTCUSD) since it's a path
+    separator; the "/" form is preserved as-is in the parquet's own symbol
+    column, which is what manifests and fetch code actually match against."""
+    name = f"{'_'.join(sorted(s.replace('/', '') for s in universe))}_{start}_{end}.parquet"
+    return data_dir / "crypto" / "daily" / name
+
+
 def fetch_alpaca_daily(universe: list[str], start: str, end: str) -> pd.DataFrame:
     """Fetch daily IEX bars from Alpaca. Requires ALPACA_API_KEY / ALPACA_SECRET_KEY
     (data/paper keys only — live keys never exist in agent environments)."""
@@ -60,6 +69,28 @@ def fetch_alpaca_daily(universe: list[str], start: str, end: str) -> pd.DataFram
         symbol_or_symbols=universe, timeframe=TimeFrame.Day, start=start, end=end
     )
     df = client.get_stock_bars(req).df.reset_index()
+    df["date"] = pd.to_datetime(df["timestamp"]).dt.date.astype(str)
+    return df[BAR_COLUMNS].sort_values(["symbol", "date"], ignore_index=True)
+
+
+def fetch_alpaca_crypto_daily(universe: list[str], start: str, end: str) -> pd.DataFrame:
+    """Fetch daily crypto spot bars from Alpaca (24/7, one bar per calendar
+    day -- no weekend/holiday gaps, unlike fetch_alpaca_daily's equity
+    sessions). Same ALPACA_API_KEY / ALPACA_SECRET_KEY as the equity fetch;
+    no separate credentials or vendor signup needed. `universe` symbols must
+    be Alpaca's pair format, e.g. "BTC/USD"."""
+    from alpaca.data.historical.crypto import CryptoHistoricalDataClient
+    from alpaca.data.requests import CryptoBarsRequest
+    from alpaca.data.timeframe import TimeFrame
+
+    client = CryptoHistoricalDataClient(
+        api_key=os.environ["ALPACA_API_KEY"],
+        secret_key=os.environ["ALPACA_SECRET_KEY"],
+    )
+    req = CryptoBarsRequest(
+        symbol_or_symbols=universe, timeframe=TimeFrame.Day, start=start, end=end
+    )
+    df = client.get_crypto_bars(req).df.reset_index()
     df["date"] = pd.to_datetime(df["timestamp"]).dt.date.astype(str)
     return df[BAR_COLUMNS].sort_values(["symbol", "date"], ignore_index=True)
 
