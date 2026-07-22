@@ -71,6 +71,15 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   3-sector combinations) but XLK dominates 69.1% of selections, so this
   mostly found tech's 2016-2024 dominance rather than validating
   cross-sectional momentum broadly).
+- [[cross-sectional-momentum-stocks50]] — same mechanism as
+  sector-rotation, run on a newly pinned 50-single-name-stock universe
+  (~4-5 per GICS sector) instead of 10 sector ETFs, to test whether real
+  idiosyncratic dispersion changes the result; `retired` (Sharpe 0.280,
+  same order of magnitude as sector-rotation's 0.255 — falsification
+  test passed far more cleanly (93 distinct 15-stock combos, all 50
+  names used, no XLK-style dominance) but turnover is ~5x worse and OOS
+  Sharpe degrades -44.2% instead of improving, the first strategy here
+  to break that pattern; see [[universe-scale-2026-07-22]]).
 - [[dual-momentum-equity-bond-gold]] — second cross-sectional strategy,
   first spanning multiple asset classes: ranks SPY/TLT/GLD monthly,
   holds the leader only if its own momentum is positive, else cash;
