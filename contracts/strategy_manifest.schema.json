@@ -30,8 +30,8 @@
       "description": "Repo-relative path of the strategy's wiki page."
     },
     "market": {
-      "enum": ["us_equities", "polymarket"],
-      "description": "polymarket is reserved for v2: schema-valid but REJECTED by every v1 runtime component."
+      "enum": ["us_equities", "crypto", "polymarket"],
+      "description": "crypto enabled in v1 (24/7 spot pairs via Alpaca CryptoHistoricalDataClient; annualization uses 365 sessions/year, not 252). polymarket is reserved for v2: schema-valid but REJECTED by every v1 runtime component."
     },
     "family": {
       "enum": ["ms_shift", "swing"],
@@ -40,7 +40,11 @@
     "universe": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9.]{0,9}$" }
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9.]{0,9}(/[A-Z0-9]{2,10})?$",
+        "description": "Equity ticker (e.g. SPY) or, when market is crypto, an Alpaca-format pair (e.g. BTC/USD)."
+      }
     },
     "hypothesis": {
       "type": "string",

@@ -33,16 +33,17 @@ class OosCheck:
     passed: bool
 
 
-def _annualized_sharpe(returns: np.ndarray) -> float:
+def _annualized_sharpe(returns: np.ndarray, sessions_per_year: int = TRADING_DAYS) -> float:
     if len(returns) < 2 or returns.std(ddof=1) == 0.0:
         return 0.0
-    return float(returns.mean() / returns.std(ddof=1) * np.sqrt(TRADING_DAYS))
+    return float(returns.mean() / returns.std(ddof=1) * np.sqrt(sessions_per_year))
 
 
 def check_out_of_sample(
     returns: pd.Series,
     oos_fraction: float,
     reject_threshold: float = 0.35,
+    sessions_per_year: int = TRADING_DAYS,
 ) -> OosCheck:
     """Split `returns` (chronological daily returns, oldest first) into a
     leading in-sample slice and a trailing out-of-sample slice, the OOS
@@ -68,8 +69,8 @@ def check_out_of_sample(
 
     in_sample = returns.iloc[:split_idx]
     oos = returns.iloc[split_idx:]
-    in_sample_sharpe = _annualized_sharpe(in_sample.to_numpy())
-    oos_sharpe = _annualized_sharpe(oos.to_numpy())
+    in_sample_sharpe = _annualized_sharpe(in_sample.to_numpy(), sessions_per_year)
+    oos_sharpe = _annualized_sharpe(oos.to_numpy(), sessions_per_year)
 
     if in_sample_sharpe <= 0.0:
         degradation_pct = float("inf")

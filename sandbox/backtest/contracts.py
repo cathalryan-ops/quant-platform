@@ -5,6 +5,9 @@ a breaking change means a new schema version (new $id), never mutation.
 extra="forbid" mirrors the schemas' additionalProperties: false.
 
 Constraints the models cannot carry (runtime-enforced):
+- market "crypto" is enabled in v1 (24/7 spot pairs; engine.py annualizes
+  with 365 sessions/year instead of us_equities' 252 — see
+  engine.SESSIONS_PER_YEAR).
 - market "polymarket" is schema-valid but must be rejected by every v1
   runtime component.
 - risk.max_position_pct must not exceed the guardrails.toml cap.
@@ -20,7 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 SCHEMA_VERSION = "1.0.0"
 
-Market = Literal["us_equities", "polymarket"]
+Market = Literal["us_equities", "crypto", "polymarket"]
 Family = Literal["ms_shift", "swing"]
 Lifecycle = Literal["research", "backtest", "paper", "live", "retired"]
 Severity = Literal["info", "warning", "high", "critical"]

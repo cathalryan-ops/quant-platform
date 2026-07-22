@@ -36,7 +36,8 @@ from .risk import apply_stop_loss
 from .signal import generate_checked, load_signal
 from .thresholds import BacktestThresholds
 
-TRADING_DAYS = 252
+TRADING_DAYS = 252  # kept as the us_equities constant; see SESSIONS_PER_YEAR for other markets
+SESSIONS_PER_YEAR = {"us_equities": TRADING_DAYS, "crypto": 365}
 SLIPPAGE_BPS = 5.0
 FEE_PCT = 0.0005  # 5 bps commission assumption per side
 
@@ -68,7 +69,7 @@ def find_repo_root(start: Path) -> Path:
 
 
 def validate_manifest(manifest: StrategyManifest, guardrails: Guardrails) -> None:
-    if manifest.market != "us_equities":
+    if manifest.market not in SESSIONS_PER_YEAR:
         raise ManifestRejected(f"market {manifest.market!r} is not enabled in v1")
     if manifest.risk.max_position_pct > guardrails.max_position_pct:
         raise ManifestRejected(
@@ -77,17 +78,17 @@ def validate_manifest(manifest: StrategyManifest, guardrails: Guardrails) -> Non
         )
 
 
-def _annualized_sharpe(returns: np.ndarray) -> float:
+def _annualized_sharpe(returns: np.ndarray, sessions_per_year: int = TRADING_DAYS) -> float:
     if len(returns) < 2 or returns.std(ddof=1) == 0.0:
         return 0.0
-    return float(returns.mean() / returns.std(ddof=1) * np.sqrt(TRADING_DAYS))
+    return float(returns.mean() / returns.std(ddof=1) * np.sqrt(sessions_per_year))
 
 
-def _annualized_sortino(returns: np.ndarray) -> float:
+def _annualized_sortino(returns: np.ndarray, sessions_per_year: int = TRADING_DAYS) -> float:
     downside = np.sqrt(np.mean(np.square(np.minimum(returns, 0.0))))
     if len(returns) < 2 or downside == 0.0:
         return 0.0
-    return float(returns.mean() / downside * np.sqrt(TRADING_DAYS))
+    return float(returns.mean() / downside * np.sqrt(sessions_per_year))
 
 
 def _oos_note(oos_check, oos_fraction: float, oos_reject_threshold: float) -> str:
@@ -104,12 +105,14 @@ def _oos_note(oos_check, oos_fraction: float, oos_reject_threshold: float) -> st
     )
 
 
-def _walk_forward(returns: pd.Series, folds: int) -> tuple[float, float, list[float]]:
+def _walk_forward(
+    returns: pd.Series, folds: int, sessions_per_year: int = TRADING_DAYS
+) -> tuple[float, float, list[float]]:
     fold_sharpes: list[float] = []
     fold_sortinos: list[float] = []
     for chunk in np.array_split(returns.to_numpy(), folds):
-        fold_sharpes.append(_annualized_sharpe(chunk))
-        fold_sortinos.append(_annualized_sortino(chunk))
+        fold_sharpes.append(_annualized_sharpe(chunk, sessions_per_year))
+        fold_sortinos.append(_annualized_sortino(chunk, sessions_per_year))
     return float(np.mean(fold_sharpes)), float(np.mean(fold_sortinos)), fold_sharpes
 
 
@@ -188,18 +191,20 @@ def run_backtest(
         freq="1D",
     )
 
+    sessions_per_year = SESSIONS_PER_YEAR[manifest.market]
+
     returns = pf.returns()
-    wf_sharpe, wf_sortino, fold_sharpes = _walk_forward(returns, folds)
+    wf_sharpe, wf_sortino, fold_sharpes = _walk_forward(returns, folds, sessions_per_year)
     max_dd_pct = float(abs(pf.max_drawdown()) * 100.0)
     oos_check = (
-        check_out_of_sample(returns, oos_fraction, oos_reject_threshold)
+        check_out_of_sample(returns, oos_fraction, oos_reject_threshold, sessions_per_year)
         if oos_fraction > 0.0
         else None
     )
 
     orders = pf.orders.records_readable
     total_traded = float((orders["Size"].abs() * orders["Price"]).sum())
-    years = len(close) / TRADING_DAYS
+    years = len(close) / sessions_per_year
     turnover = float(total_traded / (float(pf.value().mean()) * years)) if years > 0 else 0.0
 
     thresholds = BacktestThresholds.load(
