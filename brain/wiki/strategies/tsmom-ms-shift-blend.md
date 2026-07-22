@@ -155,3 +155,23 @@ actual under current stop-loss enforcement) — corrected in place, see
   this specific data/window — worth a human read on whether the threshold
   itself should be revisited, separate from continuing to search for
   strategies that clear it as-is.
+- 2026-07-22 — human decision on the gate flag — reviewed via Telegram
+  per the above. `contracts/promotion_thresholds.toml`'s
+  `min_walkforward_sharpe = 1.0` was never calibrated against real
+  walk-forward evidence: its only commit is the pre-data `P0 repo
+  scaffold`, and nothing in the repo shows a benchmark behind the number.
+  Decision: loosen `min_walkforward_sharpe` for the `backtest_to_paper`
+  stage only (target ~0.8, matching the existing `paper_to_live` bar), so
+  this strategy — the vault's best result, 0.884266 Sharpe / 1.296607
+  Sortino, and the closest anything has come to the old bar — can proceed
+  into paper trading. `paper_to_live` keeps its own separate gate plus
+  the mandatory two-step Telegram approval, so this does not touch what's
+  required before any real capital is at risk; it only lets paper trading
+  itself generate the next real evidence, instead of continuing
+  backtest-only research indefinitely against a bar that was set before
+  any backtest had ever run. New backtest-only strategy research is
+  paused pending paper results — see `brain/log.md`. The threshold edit
+  itself is applied by human hand directly in
+  `contracts/promotion_thresholds.toml`, per the root constitution
+  (agents read this file, never write it); this entry documents the
+  decision and rationale only.
