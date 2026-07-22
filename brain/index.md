@@ -120,6 +120,24 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   than tsmom and ms-shift's correlation to each other (0.5522), driven by
   shared SPY-momentum logic — less independent a leg than screening
   hoped).
+- [[tsmom-tlt-gld]] — [[time-series-momentum]] unmodified, applied
+  independently to TLT and GLD (zero symbol overlap with the existing
+  blend legs); `retired` on the standalone gate (Sharpe 0.173042, a
+  clear miss) but the correlation finding is the real result: 0.0051 vs
+  tsmom-spy-qqq and 0.0689 vs ms-shift-spy-high-displacement — near-zero,
+  unlike dual-momentum-equity-bond-gold's 0.5852. Weak-but-real edge
+  (not a mechanism-level null), immediately tested as a blend leg — see
+  [[tsmom-ms-shift-tltgld-blend]].
+- [[tsmom-ms-shift-tltgld-blend]] — 3-way equal-weight blend extending
+  [[tsmom-ms-shift-blend]] with [[tsmom-tlt-gld]] as the third leg
+  (chosen over dual-momentum for its near-zero correlation to both
+  existing legs); `retired`, the **new best result in this vault**:
+  Sharpe 0.989632, Sortino 1.506836, missing the 1.0 Sharpe gate by only
+  0.010368 (1.0%) — the closest any strategy here has ever come. Beats
+  the 2-leg blend by +0.105, in direct contrast to the dual-momentum
+  3rd-leg attempt's -0.021 regression, confirming correlation regime
+  (near-zero: 0.0051/0.0689) rather than standalone Sharpe strength
+  determines whether a third leg helps.
 - [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
   integration-test scaffold that drives the full loop end-to-end; not a
   real edge and excluded from cross-strategy synthesis. `research`
