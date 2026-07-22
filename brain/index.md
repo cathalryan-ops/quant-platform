@@ -248,3 +248,12 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   Flag confirmed directionally correct but under-specified — real nominal
   breadth (10 labeled sectors), thin effective breadth (~3 PCA components
   carry non-redundant signal). No strategy re-run; diagnostic only.
+- [[universe-scale-2026-07-22]] — closes the "genuinely larger universe"
+  lever: cross-sectional-momentum-stocks50 (identical mechanism, 50
+  single-name stocks instead of 10 sector ETFs) reproduced sector-
+  rotation's Sharpe almost exactly (0.280 vs 0.255) despite passing the
+  rotation-diversity falsification test far more cleanly (all 50 names
+  used, no dominant single name), at ~5x the turnover and a reversed
+  (degrading, not improving) OOS split. Universe size was not the
+  limiting factor; the mechanism itself is. Argues against further
+  universe-scaling investment on this mechanism.
