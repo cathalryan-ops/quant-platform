@@ -167,3 +167,13 @@ of a favorable OOS window.
   own near-miss that a real, non-overfit, triple-diversified combination
   of edges can approach the 1.0 Sharpe bar on this data — worth noting
   even though the standing decision on the gate itself remains unchanged.
+- 2026-07-22 — closed — decision (human + agent) not to pursue a fourth
+  blend leg: no remaining low-correlation candidate in the pinned
+  universe (TLT/GLD spent on this leg; sector ETFs/IWM/DIA share the
+  same equity PC1 factor per [[pinned-universe-diversity-2026-07-22]];
+  crypto's 2021-only data can't join this 2016-2024 window without
+  invalidating every comparison made across the blend-leg-search line).
+  Also a process-discipline concern: two candidates already tried
+  against the same fixed sample and OOS split, keeping the winner — a
+  fourth attempt risks crossing into search-until-it-clears-the-gate.
+  See [[blend-leg-search-2026-07-22]] for the full synthesis.

@@ -204,6 +204,16 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   basis); 13/13 real walk-forward results have now failed it; best is
   tsmom-ms-shift-blend (Sharpe 0.884, Sortino 1.297) — evidence laid out
   for human review, no replacement number proposed.
+- [[blend-leg-search-2026-07-22]] — closes the 3rd-leg blend search:
+  dual-momentum-equity-bond-gold (weaker standalone, higher correlation
+  to tsmom via shared SPY logic) made the blend worse; tsmom-tlt-gld
+  (weaker still standalone, near-zero correlation) made it the vault's
+  best result (Sharpe 0.990). Reusable finding: correlation to existing
+  legs, not standalone strength, is what determines whether a candidate
+  leg helps. Documents the decision to stop at 3 legs rather than search
+  for a 4th (no remaining low-correlation candidate in the pinned
+  universe without a date-range mismatch or repeating dual-momentum's
+  correlated outcome).
 - [[pinned-universe-diversity-2026-07-22]] — investigates the
   universe-narrowness flag from sector-rotation/dual-momentum-equity-
   bond-gold: 14 of the 16 pinned symbols are all US-equity slices sharing
