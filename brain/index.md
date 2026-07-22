@@ -138,6 +138,22 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   3rd-leg attempt's -0.021 regression, confirming correlation regime
   (near-zero: 0.0051/0.0689) rather than standalone Sharpe strength
   determines whether a third leg helps.
+- [[ms-shift-btc-eth]] — [[market-structure-shift]]/[[displacement]]
+  unmodified, applied to BTC/USD, ETH/USD; `retired` (Sharpe 0.559667,
+  a clear miss but the strongest single-leg crypto result so far — 44%
+  short of the gate vs. tsmom-btc-eth's 78% short. Moderate correlation
+  to tsmom-btc-eth, 0.4319, and near-coin-flip raw signal agreement,
+  45.9-50.4%).
+- [[ms-shift-tsmom-blend-btc-eth]] — crypto-native analog of
+  [[tsmom-ms-shift-blend]]: blends [[ms-shift-btc-eth]] and
+  [[tsmom-btc-eth]] 50/50; `retired` (Sharpe 0.406965, *below*
+  ms-shift-btc-eth alone — the opposite outcome from the equity blend
+  despite comparable leg correlation. Root cause: the two crypto legs
+  are 2.55x apart in individual strength, and equal-weighting between
+  unequal-strength legs dilutes more than moderate correlation
+  compensates for. Refines the correlation-over-strength finding from
+  [[blend-leg-search-2026-07-22]]: correlation is necessary but not
+  sufficient — comparable leg strength matters too).
 - [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
   integration-test scaffold that drives the full loop end-to-end; not a
   real edge and excluded from cross-strategy synthesis. `research`

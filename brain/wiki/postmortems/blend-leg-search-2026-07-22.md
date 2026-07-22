@@ -109,11 +109,29 @@ of result). This page exists to close the blend-leg-search axis cleanly
 and record the reusable correlation-over-strength finding for whichever
 research direction comes next.
 
+**Update, same day — the "crypto as its own comparison" follow-up
+refines the headline finding.** [[ms-shift-btc-eth]] and
+[[ms-shift-tsmom-blend-btc-eth]] tested the same blending lever on
+BTC/USD, ETH/USD (correlation 0.4319, comparable to the equity legs'
+0.5522) and got the opposite result: the crypto blend (0.406965) is
+*worse* than its stronger leg alone (ms-shift-btc-eth, 0.559667). The
+cause is not correlation — it's that the two crypto legs are 2.55x apart
+in individual Sharpe (0.559667 vs. tsmom-btc-eth's 0.21921), vs. the
+equity legs' 7% gap (0.813 vs. 0.759). Fixed 50/50 weighting between
+unequal-strength legs dilutes the stronger leg more than moderate
+correlation compensates for. **Revised rule for future leg selection:**
+correlation to existing legs is necessary but not sufficient for
+equal-weight blending to help — the legs also need comparable individual
+strength, or the weight needs to reflect the imbalance (not attempted
+here, since fitting a weight to this exact sample repeats the
+overfitting pattern this vault avoids elsewhere).
+
 ## Links
 
 - Strategies reviewed: [[tsmom-ms-shift-blend]],
   [[tsmom-ms-shift-dualmom-blend]], [[tsmom-tlt-gld]],
-  [[tsmom-ms-shift-tltgld-blend]]
+  [[tsmom-ms-shift-tltgld-blend]], [[ms-shift-btc-eth]],
+  [[ms-shift-tsmom-blend-btc-eth]]
 - Related: [[research-campaign-2026-07-21]] (proposed the original 2-leg
   blend), [[pinned-universe-diversity-2026-07-22]] (basis for ruling out
   sector ETFs as 4th-leg candidates), [[tsmom-btc-eth]] (the only other
