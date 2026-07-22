@@ -240,6 +240,12 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   construction; structurally distinct from single-asset mean-reversion
   (which bets on one asset's own price level reverting) and the first
   long-short mechanism tested in this vault.
+- [[overnight-return-effect]] — a large, disproportionate share of an
+  index's return accrues prior-close-to-open rather than open-to-close;
+  a return-decomposition claim (needs open AND close prices) rather
+  than a predictor or ranking mechanism, and the first mechanism in
+  this vault that `engine.py`'s close-price-only execution model
+  cannot express as a `Signal`/manifest strategy at all.
 
 ## Postmortems
 
