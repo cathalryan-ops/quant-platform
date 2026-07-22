@@ -111,6 +111,15 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   a small contracts/engine patch to enable `market: "crypto"` (schema +
   per-market 365-day annualization in engine.py/oos.py).
 
+- [[tsmom-ms-shift-dualmom-blend]] — 3-way equal-weight (1/3 each) blend
+  extending [[tsmom-ms-shift-blend]] with a third leg,
+  [[dual-momentum-equity-bond-gold]]; `retired` (Sharpe 0.863027, below
+  the 2-leg blend's 0.884266 — misses its own pre-registered kill
+  criterion. Sortino/drawdown/turnover all improve slightly, but the
+  third leg's correlation to tsmom-spy-qqq (0.5852) turned out higher
+  than tsmom and ms-shift's correlation to each other (0.5522), driven by
+  shared SPY-momentum logic — less independent a leg than screening
+  hoped).
 - [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
   integration-test scaffold that drives the full loop end-to-end; not a
   real edge and excluded from cross-strategy synthesis. `research`
