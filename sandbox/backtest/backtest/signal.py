@@ -57,9 +57,12 @@ class BarFrame:
 @runtime_checkable
 class Signal(Protocol):
     def generate(self, bars: "BarFrame") -> pd.DataFrame:
-        """Map OHLC bars to target long weights in [0, 1], same index/columns
-        as `bars`. The weight for day T applies from the NEXT session's open
-        (the engine shifts; the signal must not peek forward)."""
+        """Map OHLC bars to target weights in [-3, 3], same index/columns
+        as `bars`. Positive is long, negative is short (added 2026-07-22 for
+        pairs-trading, the vault's first long-short mechanism; every
+        strategy before it only ever used [0, 1]). The weight for day T
+        applies from the NEXT session's open (the engine shifts; the signal
+        must not peek forward)."""
         ...
 
 
@@ -85,8 +88,14 @@ def generate_checked(signal: Signal, bars: BarFrame, *, n_cuts: int = 3) -> pd.D
     full = signal.generate(bars)
     if not full.index.equals(bars.index) or list(full.columns) != bars.columns:
         raise ValueError("signal output must share the input's index and columns")
-    if ((full < 0) | (full > 1)).any().any():
-        raise ValueError("signal weights must lie in [0, 1] (long-only v1)")
+    if ((full < -3.0) | (full > 3.0)).any().any():
+        # Bound widened from the original [0, 1] (long-only v1) on
+        # 2026-07-22 for pairs-trading (the first long-short strategy):
+        # a pair's two legs are +/-1 (unit leg) and +/-hedge_ratio (the
+        # other leg), so a symmetric bound comfortably covers any
+        # realistic hedge ratio while still catching a genuinely runaway
+        # signal before it reaches the risk layer.
+        raise ValueError("signal weights must lie in [-3, 3]")
 
     n = len(bars)
     cuts = sorted({max(2, (i + 1) * n // (n_cuts + 1)) for i in range(n_cuts)})
