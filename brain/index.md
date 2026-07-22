@@ -171,6 +171,14 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   inverted on this sample: the low-vol basket's raw Sharpe, 0.5386, is
   below an equal-weight buy-and-hold benchmark's, 0.6608; see
   [[low-vol-anomaly-2026-07-22]]).
+- [[pairs-trading-stocks50]] — first long-short, market-neutral strategy
+  in this vault: three same-sector pairs (JNJ/ABT, CVX/COP, DUK/SO)
+  pre-screened via Engle-Granger cointegration (p<0.05 full-sample),
+  trading a 60-day rolling-hedge-ratio spread; `retired`, this vault's
+  first *negative* walk-forward Sharpe (-0.539613) — the cointegration
+  screen turned out to be spurious (none of the three pairs hold up when
+  the test is re-run on each half of the sample separately, p=0.25-0.33);
+  see [[pairs-trading-stocks50-2026-07-22]].
 - [[sma-cross-demo]] — trivial 20/50-day SMA crossover on SPY, the P11
   integration-test scaffold that drives the full loop end-to-end; not a
   real edge and excluded from cross-strategy synthesis. `research`
@@ -227,6 +235,11 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   mispricing story (Betting Against Beta), not underreaction or a
   mechanical event — the first non-momentum, non-structure-break
   mechanism tested in this vault.
+- [[pairs-trading-stat-arb]] — relative-value mean-reversion of the
+  spread between two cointegrated assets, market-neutral by
+  construction; structurally distinct from single-asset mean-reversion
+  (which bets on one asset's own price level reverting) and the first
+  long-short mechanism tested in this vault.
 
 ## Postmortems
 
@@ -281,3 +294,17 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   (persistent defensive-sector cluster) rules out an implementation
   bug. Does not close the broader "new mechanism class" lever — only
   this one mechanism, on this sample.
+- [[pairs-trading-stocks50-2026-07-22]] — closes the pairs-trading test:
+  Sharpe -0.539613, this vault's first negative walk-forward result.
+  Root cause isolated directly: the pre-registered Engle-Granger screen
+  (p<0.05 full-sample) turned out to be spurious for all three traded
+  pairs — re-running the same test on the first vs. second half of the
+  identical sample shows none of them hold up in the second half
+  (p=0.25-0.33), most likely shared long-run drift across a bull-biased
+  9-year window rather than genuine short-horizon mean-reversion.
+  Corroborated by the convergence-vs-timeout check: only 17.9-24.1% of
+  trades actually converged, the rest rode to the max-hold safety exit.
+  Reusable methodological finding: a full-sample-only cointegration
+  screen is not sufficient evidence of tradeable mean-reversion; a
+  stability-across-sub-periods check belongs in the *screening* step
+  next time, not just as a post-hoc falsification check.
