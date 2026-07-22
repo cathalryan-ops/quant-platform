@@ -151,4 +151,17 @@ Catalog of every wiki page. Maintained by the vault operations (`/capture`,
   0.813; every filter tried on tsmom-spy-qqq made it worse (3x); flags
   the threshold for human review via Telegram and proposes blending
   tsmom-spy-qqq with ms-shift-spy-high-displacement as the next untested
-  lever.
+  lever. **2026-07-22 addendum:** `promotion_thresholds.toml` has exactly
+  one commit ever (pre-dates every real backtest, no documented empirical
+  basis); 13/13 real walk-forward results have now failed it; best is
+  tsmom-ms-shift-blend (Sharpe 0.884, Sortino 1.297) — evidence laid out
+  for human review, no replacement number proposed.
+- [[pinned-universe-diversity-2026-07-22]] — investigates the
+  universe-narrowness flag from sector-rotation/dual-momentum-equity-
+  bond-gold: 14 of the 16 pinned symbols are all US-equity slices sharing
+  one dominant factor (71.7% of variance, PC1; avg pairwise corr 0.685;
+  broad index ETFs alone average 0.856); only TLT/GLD are genuine
+  non-equity diversifiers; liquidity is not a constraint (all ≥$170M/day).
+  Flag confirmed directionally correct but under-specified — real nominal
+  breadth (10 labeled sectors), thin effective breadth (~3 PCA components
+  carry non-redundant signal). No strategy re-run; diagnostic only.

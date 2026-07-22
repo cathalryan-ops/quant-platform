@@ -109,6 +109,46 @@ the backtest→paper gate. Two concrete follow-ups:
   Untested; the natural next hypothesis if research continues on this
   data before waiting on a universe expansion.
 
+## Addendum 2026-07-22 — the gate has zero empirical backing, and 13/13 have now failed it
+
+Filed as prep for the human review flagged above, not a recommendation of
+a specific replacement number — this vault cannot edit
+`contracts/promotion_thresholds.toml` and this addendum doesn't attempt
+to guess what it should say.
+
+**The threshold predates every real backtest in this vault.**
+`contracts/promotion_thresholds.toml` has exactly one commit in its
+history, `2edaf9d` ("P0 repo scaffold"), dated 2026-07-19 — the initial
+repo-scaffolding commit, written before a single strategy existed to
+backtest against it. The file's own header comment calls the values
+"deliberately conservative," but nothing in the repo — no ADR, no design
+doc, no prior research note — shows a benchmark, a reference study, or
+any empirical basis behind the specific numbers `min_walkforward_sharpe =
+1.0` / `min_walkforward_sortino = 1.2`. It reads as a round-number
+placeholder set at scaffold time, not a calibrated bar.
+
+**Every real result measured against it since has failed.** With
+[[tsmom-ms-shift-blend]] now retired, this vault has run 13 real
+walk-forward backtests against real 2016-2024 SPY/QQQ/sector data (12 in
+the table above, plus the blend). **All 13 failed
+`passed_thresholds`.** The best of the 13 is
+[[tsmom-ms-shift-blend]] itself — Sharpe 0.884266, Sortino 1.296607 —
+which clears the Sortino bar outright (1.296607 > 1.2) and misses the
+Sharpe bar by 0.116 (0.884266 vs. 1.0), the closest approach in the
+vault to date, achieved via a diversifying combination (0.5522 leg
+correlation, confirmed not assumed) rather than a fitted single signal.
+
+**What this addendum is and isn't saying.** It is not saying 1.0/1.2 is
+wrong, and not proposing a replacement value — a 13-for-13 failure rate
+is also consistent with a correctly-conservative gate doing exactly its
+job of rejecting mediocre edges. What it is saying: the number currently
+being measured against has no documented empirical basis, and there is
+now a substantial, non-overfit body of real results (13 genuinely
+distinct or diversifying mechanisms, systematically covering day/month
+scale and absolute/cross-sectional construction) to calibrate a revised
+number against, if a human wants to revisit it — a decision this vault
+cannot make itself either way.
+
 ## Links
 
 - Strategies reviewed: [[tsmom-spy-qqq]], [[ms-shift-spy-high-displacement]],
@@ -116,10 +156,14 @@ the backtest→paper gate. Two concrete follow-ups:
   [[tsmom-vol-accel-hysteresis]], [[tsmom-breadth-gate]], [[tsmom-vol-accel]],
   [[sector-rotation]], [[ms-shift-spy-vol-regime]],
   [[dual-momentum-equity-bond-gold]], [[mean-reversion-spy-qqq]],
-  [[turn-of-month-spy-qqq]]
+  [[turn-of-month-spy-qqq]], [[tsmom-ms-shift-blend]]
 - Concepts: [[time-series-momentum]], [[market-structure-shift]],
   [[displacement]], [[cross-sectional-momentum]], [[dual-momentum]],
-  [[market-breadth]], [[volatility-acceleration]], [[volatility-targeting]]
+  [[market-breadth]], [[volatility-acceleration]], [[volatility-targeting]],
+  [[signal-blending]]
+- Related: [[pinned-universe-diversity-2026-07-22]] (follow-up
+  investigation into the universe-narrowness flag below)
 - Results: `data/results/<strategy-id>/backtest_result.json` for each
   strategy above
-- Thresholds: `contracts/promotion_thresholds.toml`
+- Thresholds: `contracts/promotion_thresholds.toml` (one commit ever,
+  `2edaf9d`, predates every real backtest — see addendum above)
