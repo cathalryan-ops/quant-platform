@@ -45,6 +45,54 @@ See `backtest/data.py`.
   range too — including it would have cut 2016-2018 off the whole
   snapshot, not just off XLC.
 
+## `AAPL_ABT_APD_AXP_BA_BAC_CAT_CMCSA_COP_CSCO_CVX_D_DIS_DUK_ECL_FCX_GS_HD_HON_INTC_JNJ_JPM_KO_MCD_MRK_MSFT_NEE_NEM_NKE_NUE_O_ORCL_OXY_PEP_PFE_PG_PLD_PSA_SBUX_SLB_SO_SPG_T_UNH_UNP_UPS_VZ_WFC_WMT_XOM_2016-01-01_2024-12-31.parquet`
+
+- **Universe (50):** individual single-name US equities, ~4-5 per GICS
+  sector (not ETFs) — Information Technology: AAPL, MSFT, ORCL, CSCO,
+  INTC; Health Care: JNJ, PFE, UNH, MRK, ABT; Financials: JPM, BAC, WFC,
+  GS, AXP; Consumer Discretionary: HD, MCD, NKE, SBUX; Communication
+  Services: DIS, CMCSA, VZ, T; Industrials: UNP, HON, UPS, CAT, BA;
+  Consumer Staples: PG, KO, PEP, WMT; Energy: XOM, CVX, COP, SLB, OXY;
+  Utilities: NEE, DUK, SO, D; Real Estate: SPG, PLD, PSA, O; Materials:
+  APD, ECL, NEM, FCX, NUE.
+- **Period:** 2016-01-01 to 2024-12-31 (all 50 symbols align cleanly,
+  2263 sessions, 2016-01-04 to 2024-12-30 — no truncation, identical
+  aligned range to the 16-symbol ETF snapshot).
+- **Content hash:** `sha256:465fbe32124a38b425744235b6eaf81087a1110f6bbfdd384253bc238c4299af`
+- **Fetched by:** `scripts/fetch_stock_universe.py` (re-run to refresh;
+  it no-ops if the file already exists). **Split-adjusted**
+  (`adjustment="split"` on the Alpaca request) — dividends deliberately
+  left unadjusted, matching every other snapshot in this file. This is
+  the first pinned snapshot that needed split adjustment: several
+  chosen names split within the window (AAPL 4:1 Aug 2020, CMCSA 2:1
+  Apr 2017, NEE 4:1 Oct 2020, WMT 3:1 Feb 2024) and this vault's prior
+  ETF-only universes never had to handle one. Verified directly:
+  AAPL's close is ~$125-134 through its Aug 2020 split date (post-split
+  scale, no ~4x discontinuity).
+- **Why this basket:** `pinned-universe-diversity-2026-07-22` found
+  only 2 of the existing 16 symbols (TLT, GLD) are genuine
+  diversifiers — the 14 equity/sector ETF symbols load almost entirely
+  on one PC1 factor (71.7% of variance) because sector ETFs are
+  themselves aggregates that wash out real single-name dispersion. This
+  pins actual stock-level dispersion at a "dozens" scale to test
+  `sector-rotation.md`'s already-proven-universe-agnostic
+  cross-sectional-momentum mechanism against it directly.
+- **Excluded despite being an obvious sector pick — GE (Industrials):**
+  GE HealthCare (Jan 2024) and GE Vernova (Apr 2024) spinoffs both fall
+  inside the window — even though the GE ticker itself kept trading,
+  both distributions are large one-time value transfers that would
+  look like unexplained price shocks unrelated to the momentum signal.
+  Replaced with UNP (Union Pacific), no spinoffs/renames in-window.
+- **Excluded — LIN/DD (Materials):** the Praxair/Linde merger (2018,
+  new entity trades as LIN, replacing PX) and the Dow/DuPont
+  merger-then-three-way-split (2017-2019) both break single-ticker
+  continuity mid-window. Used APD/ECL/NEM/FCX/NUE instead — all
+  continuously single-ticker across 2016-2024.
+- **Point-in-time GICS membership not enforced** — same shortcut this
+  vault already took picking "10 of 11 current SPDR sectors" for the
+  16-symbol snapshot; this is exploratory research, not an
+  index-replication product.
+
 ## `BTCUSD_ETHUSD_2021-01-01_2024-12-31.parquet` (`data/crypto/daily/`)
 
 - **Market:** `crypto` (the first non-`us_equities` pinned data in this

@@ -54,9 +54,20 @@ def default_crypto_snapshot_path(data_dir: Path, universe: list[str], start: str
     return data_dir / "crypto" / "daily" / name
 
 
-def fetch_alpaca_daily(universe: list[str], start: str, end: str) -> pd.DataFrame:
+def fetch_alpaca_daily(
+    universe: list[str], start: str, end: str, adjustment: str | None = None
+) -> pd.DataFrame:
     """Fetch daily IEX bars from Alpaca. Requires ALPACA_API_KEY / ALPACA_SECRET_KEY
-    (data/paper keys only — live keys never exist in agent environments)."""
+    (data/paper keys only — live keys never exist in agent environments).
+
+    adjustment=None (default) matches every snapshot pinned before
+    2026-07-22: raw, unadjusted closes. Single-name equities need
+    adjustment="split" wherever the pinned window crosses a real stock
+    split (e.g. AAPL 4:1 Aug 2020) — unlike this vault's prior ETF-only
+    universes, which never split, a raw close series would show a fake
+    ~75%+ one-day crash at the split date and corrupt any trailing-return
+    signal. Left optional (not a new default) so every previously-pinned
+    snapshot stays exactly reproducible if ever re-fetched."""
     from alpaca.data.historical import StockHistoricalDataClient
     from alpaca.data.requests import StockBarsRequest
     from alpaca.data.timeframe import TimeFrame
@@ -66,7 +77,11 @@ def fetch_alpaca_daily(universe: list[str], start: str, end: str) -> pd.DataFram
         secret_key=os.environ["ALPACA_SECRET_KEY"],
     )
     req = StockBarsRequest(
-        symbol_or_symbols=universe, timeframe=TimeFrame.Day, start=start, end=end
+        symbol_or_symbols=universe,
+        timeframe=TimeFrame.Day,
+        start=start,
+        end=end,
+        adjustment=adjustment,
     )
     df = client.get_stock_bars(req).df.reset_index()
     df["date"] = pd.to_datetime(df["timestamp"]).dt.date.astype(str)
